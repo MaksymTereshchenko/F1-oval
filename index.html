@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+  />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>F1 Oval Rush 2024</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="app">
+    <!-- Pre-Race Car Selection Screen -->
+    <section id="menu-screen" class="screen active">
+      <div class="menu-bg-pattern"></div>
+
+      <header class="menu-header">
+        <div class="badge-2024">2024 SEASON</div>
+        <h1 class="game-title">F1 <span>OVAL RUSH</span></h1>
+        <p class="game-subtitle">Select your 2024 Big 4 constructor &amp; hit the flat oval</p>
+      </header>
+
+      <div class="volume-pill menu-volume" title="Music &amp; Sound Volume">
+        <button class="vol-mute-btn" type="button" aria-label="Toggle Mute">🔊</button>
+        <input class="vol-slider" type="range" min="0" max="100" value="45" aria-label="Volume" />
+        <span class="vol-pct">45%</span>
+      </div>
+
+      <div id="team-grid" class="team-grid">
+        <!-- Populated dynamically by src/main.js -->
+      </div>
+
+      <footer class="menu-footer">
+        <div class="controls-pill">
+          <span><kbd>W</kbd> / <kbd>↑</kbd> Gas</span>
+          <span><kbd>S</kbd> / <kbd>↓</kbd> Brake</span>
+          <span><kbd>A</kbd> <kbd>D</kbd> / <kbd>←</kbd> <kbd>→</kbd> Steer</span>
+          <span><kbd>C</kbd> Camera</span>
+          <span><kbd>R</kbd> Restart</span>
+        </div>
+
+        <button id="start-btn" class="start-btn" type="button">
+          <span class="btn-shine"></span>
+          START RACE
+        </button>
+      </footer>
+    </section>
+
+    <!-- Race Screen -->
+    <section id="race-screen" class="screen">
+      <div id="viewport-3d"></div>
+
+      <!-- Top HUD -->
+      <div class="hud-top">
+        <div class="hud-card team-pill">
+          <span id="hud-team-dot" class="team-dot"></span>
+          <div>
+            <div id="hud-team-name" class="hud-label">MCLAREN</div>
+            <div id="hud-chassis" class="hud-sub">MCL38 • #4</div>
+          </div>
+        </div>
+
+        <div class="hud-card lap-panel">
+          <div class="lap-box">
+            <span class="lap-caption">LAP</span>
+            <span id="hud-lap" class="lap-value">1</span>
+          </div>
+          <div class="lap-divider"></div>
+          <div class="lap-box">
+            <span class="lap-caption">CURRENT</span>
+            <span id="hud-current-time" class="lap-value mono">00:00.00</span>
+          </div>
+          <div class="lap-divider"></div>
+          <div class="lap-box">
+            <span class="lap-caption">BEST</span>
+            <span id="hud-best-time" class="lap-value mono best">--:--.--</span>
+          </div>
+        </div>
+
+        <div class="hud-actions">
+          <div class="cam-switcher" title="Switch Camera (C or 1-4)">
+            <button class="cam-btn active" data-cam="tcam" type="button">T-CAM</button>
+            <button class="cam-btn" data-cam="cockpit" type="button">COCKPIT</button>
+            <button class="cam-btn" data-cam="wing" type="button">WING</button>
+            <button class="cam-btn" data-cam="chase" type="button">CHASE</button>
+          </div>
+          <div class="volume-pill hud-volume" title="Music &amp; Sound Volume (M to Mute)">
+            <button class="vol-mute-btn" type="button" aria-label="Toggle Mute">🔊</button>
+            <input class="vol-slider" type="range" min="0" max="100" value="45" aria-label="Volume" />
+          </div>
+          <button id="restart-btn" class="icon-btn" type="button" title="Restart (R)">↻</button>
+          <button id="garage-btn" class="garage-btn" type="button">GARAGE</button>
+        </div>
+      </div>
+
+      <!-- Start Lights Overlay -->
+      <div id="start-lights" class="start-lights hidden">
+        <div class="lights-gantry">
+          <div class="light-col"><span class="lamp"></span><span class="lamp"></span></div>
+          <div class="light-col"><span class="lamp"></span><span class="lamp"></span></div>
+          <div class="light-col"><span class="lamp"></span><span class="lamp"></span></div>
+          <div class="light-col"><span class="lamp"></span><span class="lamp"></span></div>
+          <div class="light-col"><span class="lamp"></span><span class="lamp"></span></div>
+        </div>
+        <div id="lights-text" class="lights-text">GET READY</div>
+      </div>
+
+      <!-- Toast notification (e.g. New Best Lap) -->
+      <div id="lap-toast" class="lap-toast hidden"></div>
+
+      <!-- Bottom HUD -->
+      <div class="hud-bottom">
+        <!-- Speedometer & Telemetry -->
+        <div class="hud-card speedo-card">
+          <div class="speedo-main">
+            <div class="gear-badge" id="hud-gear">N</div>
+            <div class="speed-readout">
+              <span id="hud-speed" class="speed-num">0</span>
+              <span class="speed-unit">KM/H</span>
+            </div>
+          </div>
+
+          <div class="telemetry-bars">
+            <div class="bar-row">
+              <span class="bar-label">DOWNFORCE</span>
+              <div class="bar-track">
+                <div id="hud-downforce-bar" class="bar-fill aero"></div>
+              </div>
+              <span id="hud-downforce-val" class="bar-num">0G</span>
+            </div>
+            <div class="bar-row">
+              <span class="bar-label">GRIP LOAD</span>
+              <div class="bar-track">
+                <div id="hud-grip-bar" class="bar-fill grip"></div>
+              </div>
+              <span id="hud-grip-state" class="bar-num">OK</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Pedal Indicators + Minimap -->
+        <div class="hud-right-cluster">
+          <div class="hud-card pedals-card">
+            <div class="pedal-meter">
+              <div id="hud-brake-bar" class="pedal-fill brake"></div>
+              <span>BRK</span>
+            </div>
+            <div class="pedal-meter">
+              <div id="hud-throttle-bar" class="pedal-fill gas"></div>
+              <span>GAS</span>
+            </div>
+          </div>
+
+          <div class="hud-card minimap-card">
+            <canvas id="minimap-canvas" width="160" height="104"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Mobile Touch Controls (auto-shown on touch devices) -->
+      <div id="touch-controls" class="touch-controls">
+        <div class="touch-cluster left">
+          <button id="touch-left" class="touch-btn steer-btn" type="button" aria-label="Steer Left">◀</button>
+          <button id="touch-right" class="touch-btn steer-btn" type="button" aria-label="Steer Right">▶</button>
+        </div>
+        <div class="touch-cluster right">
+          <button id="touch-brake" class="touch-btn pedal-btn brake" type="button">BRK</button>
+          <button id="touch-gas" class="touch-btn pedal-btn gas" type="button">GAS</button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script src="lib/three.min.js"></script>
+  <script src="src/teams.js"></script>
+  <script src="src/audio.js"></script>
+  <script src="src/physics.js"></script>
+  <script src="src/car3d.js"></script>
+  <script src="src/renderer3d.js"></script>
+  <script src="src/main.js"></script>
+</body>
+</html>
