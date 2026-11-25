@@ -9,6 +9,7 @@ const trackPills = Array.from(document.querySelectorAll('.track-pill'));
 const startBtn = document.getElementById('start-btn');
 
 const viewport3d = document.getElementById('viewport-3d');
+const speedVignette = document.getElementById('speed-vignette');
 const minimapCanvas = document.getElementById('minimap-canvas');
 
 const hudTeamDot = document.getElementById('hud-team-dot');
@@ -345,6 +346,11 @@ function updateHUD() {
   hudThrottleBar.style.height = `${Math.round(car.throttle * 100)}%`;
   hudBrakeBar.style.height = `${Math.round(car.brake * 100)}%`;
 
+  if (speedVignette) {
+    const vig = Math.max(0, Math.min(1, (car.speedKmh - 230) / 140));
+    speedVignette.style.opacity = vig.toFixed(2);
+  }
+
   syncSysButtons();
 }
 
@@ -444,6 +450,18 @@ function handleKey(e, isDown) {
     case 'KeyM':
       if (isDown && !e.repeat) toggleMute();
       break;
+    case 'F11':
+      if (isDown && !e.repeat) {
+        e.preventDefault();
+        if (window.pywebview && window.pywebview.api && window.pywebview.api.toggle_fullscreen) {
+          window.pywebview.api.toggle_fullscreen();
+        } else if (!document.fullscreenElement) {
+          document.documentElement.requestFullscreen().catch(() => {});
+        } else {
+          document.exitFullscreen().catch(() => {});
+        }
+      }
+      return;
     default:
       return;
   }
