@@ -1,6 +1,6 @@
 (() => {
 const THREE = window.THREE;
-const { TRACK, createF1Car3D } = window.F1;
+const { TRACKS, createF1Car3D } = window.F1;
 
 const CAMERA_MODES = ['tcam', 'cockpit', 'wing', 'chase'];
 
@@ -13,13 +13,14 @@ class RaceRenderer3D {
     this.cameraMode = 'tcam';
     this.carVisual = null;
     this.currentTeamId = null;
+    this.track = TRACKS.oval;
+    this.trackGroup = null;
 
-    // Three.js core
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x63c5ff);
-    this.scene.fog = new THREE.Fog(0x88d7ff, 180, 560);
+    this.scene.fog = new THREE.Fog(0x88d7ff, 220, 680);
 
-    this.camera = new THREE.PerspectiveCamera(68, 16 / 9, 0.08, 900);
+    this.camera = new THREE.PerspectiveCamera(68, 16 / 9, 0.08, 1100);
 
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
@@ -30,20 +31,16 @@ class RaceRenderer3D {
     this.container.innerHTML = '';
     this.container.appendChild(this.renderer.domElement);
 
-    // Chase cam smoothing state
-    this.chaseCamPos = new THREE.Vector3(-12, 4, TRACK.cornerRadius);
-    this.chaseLookPos = new THREE.Vector3(6, 1, TRACK.cornerRadius);
+    this.chaseCamPos = new THREE.Vector3(-12, 4, 135);
+    this.chaseLookPos = new THREE.Vector3(6, 1, 135);
 
-    // Particle pool
     this.particles = [];
     this.particleGeo = new THREE.SphereGeometry(0.32, 8, 6);
-
-    // Start gantry light pods
     this.gantryLamps = [];
 
     this.setupLights();
-    this.buildEnvironment();
-    this.buildTrack3D();
+    this.buildGround();
+    this.setTrack(TRACKS.oval);
     this.resize();
   }
 
@@ -57,6 +54,17 @@ class RaceRenderer3D {
     const idx = CAMERA_MODES.indexOf(this.cameraMode);
     this.cameraMode = CAMERA_MODES[(idx + 1) % CAMERA_MODES.length];
     return this.cameraMode;
+  }
+
+  setTrack(track) {
+    this.track = track;
+    if (this.trackGroup) {
+      this.scene.remove(this.trackGroup);
+    }
+    this.trackGroup = new THREE.Group();
+    this.buildTrackEnvironment(track, this.trackGroup);
+    this.buildTrack3D(track, this.trackGroup);
+    this.scene.add(this.trackGroup);
   }
 
   ensureCar(team) {
@@ -74,13 +82,13 @@ class RaceRenderer3D {
     this.scene.add(hemi);
 
     const sun = new THREE.DirectionalLight(0xfff6e0, 1.15);
-    sun.position.set(110, 180, 95);
+    sun.position.set(160, 260, 140);
     sun.castShadow = true;
     sun.shadow.mapSize.width = 2048;
     sun.shadow.mapSize.height = 2048;
     sun.shadow.camera.near = 20;
-    sun.shadow.camera.far = 520;
-    const d = 290;
+    sun.shadow.camera.far = 900;
+    const d = 660;
     sun.shadow.camera.left = -d;
     sun.shadow.camera.right = d;
     sun.shadow.camera.top = d;
@@ -89,8 +97,7 @@ class RaceRenderer3D {
     this.scene.add(sun);
   }
 
-  buildEnvironment() {
-    // Mowed cartoon grass ground texture
+  buildGround() {
     const gCanvas = document.createElement('canvas');
     gCanvas.width = 256;
     gCanvas.height = 256;
@@ -103,35 +110,47 @@ class RaceRenderer3D {
     const grassTex = new THREE.CanvasTexture(gCanvas);
     grassTex.wrapS = THREE.RepeatWrapping;
     grassTex.wrapT = THREE.RepeatWrapping;
-    grassTex.repeat.set(42, 42);
+    grassTex.repeat.set(70, 70);
     grassTex.encoding = THREE.sRGBEncoding;
 
     const ground = new THREE.Mesh(
-      new THREE.PlaneGeometry(1400, 1400),
+      new THREE.PlaneGeometry(2400, 2400),
       new THREE.MeshStandardMaterial({ map: grassTex, roughness: 0.92 })
     );
     ground.rotation.x = -Math.PI / 2;
     ground.receiveShadow = true;
     this.scene.add(ground);
+  }
 
-    // Stylized Infield Pond
-    const pond = new THREE.Mesh(
-      new THREE.CylinderGeometry(28, 28, 0.08, 32),
-      new THREE.MeshStandardMaterial({ color: 0x26b7ff, roughness: 0.15, metalness: 0.1 })
-    );
-    pond.scale.set(1.3, 1, 0.72);
-    pond.position.set(-48, 0.03, 0);
-    this.scene.add(pond);
+  isNearTrack(track, x, z, minClearance) {
+    for (let i = 0; i < track.pts.length; i += 2) {
+      const p = track.pts[i];
+      if (Math.hypot(x - p.x, z - p.z) < minClearance) return true;
+    }
+    return false;
+  }
 
-    const pondRim = new THREE.Mesh(
-      new THREE.CylinderGeometry(30, 30, 0.05, 32),
-      new THREE.MeshStandardMaterial({ color: 0xd8bb73, roughness: 0.85 })
-    );
-    pondRim.scale.set(1.3, 1, 0.72);
-    pondRim.position.set(-48, 0.015, 0);
-    this.scene.add(pondRim);
+  buildTrackEnvironment(track, targetGroup) {
+    // Stylized Pond / Albert Park Lake
+    if (track.pond) {
+      const pond = new THREE.Mesh(
+        new THREE.CylinderGeometry(track.pond.rx, track.pond.rx, 0.08, 36),
+        new THREE.MeshStandardMaterial({ color: 0x26b7ff, roughness: 0.15, metalness: 0.1 })
+      );
+      pond.scale.set(1, 1, track.pond.rz / track.pond.rx);
+      pond.position.set(track.pond.x, 0.03, track.pond.z);
+      targetGroup.add(pond);
 
-    // Grandstands along top & bottom straights
+      const pondRim = new THREE.Mesh(
+        new THREE.CylinderGeometry(track.pond.rx + 2.5, track.pond.rx + 2.5, 0.05, 36),
+        new THREE.MeshStandardMaterial({ color: 0xd8bb73, roughness: 0.85 })
+      );
+      pondRim.scale.set(1, 1, track.pond.rz / track.pond.rx);
+      pondRim.position.set(track.pond.x, 0.015, track.pond.z);
+      targetGroup.add(pondRim);
+    }
+
+    // Grandstands near start/finish straight
     const buildGrandstand = (x, z, rotY) => {
       const stand = new THREE.Group();
       const base = new THREE.Mesh(
@@ -154,7 +173,6 @@ class RaceRenderer3D {
         stand.add(tier);
       }
 
-      // Roof canopy
       const roof = new THREE.Mesh(
         new THREE.BoxGeometry(73, 0.6, 15),
         new THREE.MeshStandardMaterial({ color: 0xe6ecf5, roughness: 0.5 })
@@ -166,29 +184,51 @@ class RaceRenderer3D {
 
       stand.position.set(x, 0, z);
       stand.rotation.y = rotY;
-      this.scene.add(stand);
+      targetGroup.add(stand);
     };
 
-    const outerZ = TRACK.cornerRadius + TRACK.wallOuterOffset + 16;
-    buildGrandstand(-55, outerZ, Math.PI);
-    buildGrandstand(55, outerZ, Math.PI);
-    buildGrandstand(-55, -outerZ, 0);
-    buildGrandstand(55, -outerZ, 0);
+    const h = track.startHeading;
+    const rightX = -Math.sin(h);
+    const rightZ = Math.cos(h);
+    const standDist = track.wallOuterOffset + 15;
+    // Left side grandstand (pit complex side) & outer grandstand
+    buildGrandstand(
+      track.startX - rightX * standDist - Math.cos(h) * 20,
+      track.startZ - rightZ * standDist - Math.sin(h) * 20,
+      -h
+    );
+    buildGrandstand(
+      track.startX + rightX * standDist + Math.cos(h) * 30,
+      track.startZ + rightZ * standDist + Math.sin(h) * 30,
+      -h + Math.PI
+    );
 
-    // Cartoon Trees
+    // Cartoon Trees distributed safely outside track & pond
     const trunkMat = new THREE.MeshStandardMaterial({ color: 0x7a4b2a, roughness: 0.9 });
     const leafDarkMat = new THREE.MeshStandardMaterial({ color: 0x26752c, roughness: 0.75 });
     const leafLightMat = new THREE.MeshStandardMaterial({ color: 0x4cc452, roughness: 0.7 });
 
-    const treeCoords = [
-      [42, -32, 1.1], [68, 28, 1.25], [95, -15, 1.0], [18, 42, 0.95],
-      [-10, -45, 1.15], [-105, 42, 1.2], [-102, -45, 1.05],
-      [-210, -180, 1.4], [-145, -200, 1.3], [145, -200, 1.45], [220, -175, 1.35],
-      [-225, 178, 1.4], [-150, 200, 1.25], [150, 200, 1.3], [225, 175, 1.4],
-      [-310, -70, 1.5], [-315, 65, 1.35], [310, -68, 1.4], [315, 70, 1.3],
-    ];
+    const clearance = track.wallOuterOffset + 10;
+    let seed = 1337;
+    const rand = () => {
+      seed = (seed * 16807) % 2147483647;
+      return (seed - 1) / 2147483646;
+    };
 
-    for (const [tx, tz, sc] of treeCoords) {
+    const range = track.id === 'australia' ? 760 : 380;
+    let placed = 0;
+    for (let attempt = 0; attempt < 220 && placed < 44; attempt++) {
+      const tx = (rand() * 2 - 1) * range;
+      const tz = (rand() * 2 - 1) * range;
+
+      if (this.isNearTrack(track, tx, tz, clearance)) continue;
+      if (track.pond) {
+        const dx = (tx - track.pond.x) / (track.pond.rx + 10);
+        const dz = (tz - track.pond.z) / (track.pond.rz + 10);
+        if (dx * dx + dz * dz < 1.1) continue;
+      }
+
+      const sc = 0.95 + rand() * 0.65;
       const tree = new THREE.Group();
       const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.85, 3.6, 8), trunkMat);
       trunk.position.y = 1.8;
@@ -207,54 +247,9 @@ class RaceRenderer3D {
 
       tree.position.set(tx, 0, tz);
       tree.scale.setScalar(sc);
-      this.scene.add(tree);
+      targetGroup.add(tree);
+      placed++;
     }
-  }
-
-  sampleStadiumCenterline(numSamples) {
-    const L = TRACK.straightHalfLen;
-    const R = TRACK.cornerRadius;
-    const straightLen = 2 * L;
-    const arcLen = Math.PI * R;
-    const totalLen = 2 * straightLen + 2 * arcLen;
-
-    const pts = [];
-    for (let i = 0; i <= numSamples; i++) {
-      const t = (i % numSamples) / numSamples;
-      const s = t * totalLen;
-      let x, z, nx, nz;
-
-      if (s < straightLen) {
-        // Bottom straight (-L -> +L, z = +R)
-        x = -L + s;
-        z = R;
-        nx = 0;
-        nz = 1;
-      } else if (s < straightLen + arcLen) {
-        // Right turn (+PI/2 -> -PI/2)
-        const a = Math.PI / 2 - (s - straightLen) / R;
-        x = L + Math.cos(a) * R;
-        z = Math.sin(a) * R;
-        nx = Math.cos(a);
-        nz = Math.sin(a);
-      } else if (s < 2 * straightLen + arcLen) {
-        // Top straight (+L -> -L, z = -R)
-        x = L - (s - straightLen - arcLen);
-        z = -R;
-        nx = 0;
-        nz = -1;
-      } else {
-        // Left turn (-PI/2 -> -3PI/2)
-        const a = -Math.PI / 2 - (s - 2 * straightLen - arcLen) / R;
-        x = -L + Math.cos(a) * R;
-        z = Math.sin(a) * R;
-        nx = Math.cos(a);
-        nz = Math.sin(a);
-      }
-
-      pts.push({ x, z, nx, nz, s, isCorner: Math.abs(x) > L + 0.5 });
-    }
-    return pts;
   }
 
   buildRibbonMesh(pts, innerOffset, outerOffset, yLevel, material, uvScaleLen = 20) {
@@ -351,10 +346,10 @@ class RaceRenderer3D {
     return mesh;
   }
 
-  buildTrack3D() {
-    const pts = this.sampleStadiumCenterline(260);
+  buildTrack3D(track, targetGroup) {
+    const pts = track.pts;
 
-    // 1. Procedural Asphalt Texture with white edge lines & dashed centerline
+    // 1. Asphalt Ribbon
     const aCanvas = document.createElement('canvas');
     aCanvas.width = 512;
     aCanvas.height = 512;
@@ -363,22 +358,18 @@ class RaceRenderer3D {
     aCtx.fillStyle = '#363c4a';
     aCtx.fillRect(0, 0, 512, 512);
 
-    // Subtle cartoon asphalt grain
     for (let i = 0; i < 2400; i++) {
       aCtx.fillStyle = i % 2 === 0 ? 'rgba(255,255,255,0.035)' : 'rgba(0,0,0,0.05)';
       aCtx.fillRect(Math.random() * 512, Math.random() * 512, 3, 4);
     }
 
-    // Racing groove dark strip
     aCtx.fillStyle = 'rgba(18, 22, 30, 0.22)';
     aCtx.fillRect(140, 0, 140, 512);
 
-    // Crisp white edge lines
     aCtx.fillStyle = '#f4f7fc';
     aCtx.fillRect(8, 0, 14, 512);
     aCtx.fillRect(490, 0, 14, 512);
 
-    // Center dashed stripe
     aCtx.fillStyle = 'rgba(255,255,255,0.28)';
     aCtx.fillRect(252, 40, 8, 180);
     aCtx.fillRect(252, 290, 8, 180);
@@ -389,17 +380,18 @@ class RaceRenderer3D {
     asphaltTex.anisotropy = 8;
     asphaltTex.encoding = THREE.sRGBEncoding;
 
-    const trackMesh = this.buildRibbonMesh(
-      pts,
-      -TRACK.halfWidth,
-      TRACK.halfWidth,
-      0.025,
-      new THREE.MeshStandardMaterial({ map: asphaltTex, roughness: 0.85 }),
-      24
+    targetGroup.add(
+      this.buildRibbonMesh(
+        pts,
+        -track.halfWidth,
+        track.halfWidth,
+        0.025,
+        new THREE.MeshStandardMaterial({ map: asphaltTex, roughness: 0.85 }),
+        24
+      )
     );
-    this.scene.add(trackMesh);
 
-    // 2. Red-and-White Kerbs on turns
+    // 2. Red-and-White Kerbs on all corner segments
     const kCanvas = document.createElement('canvas');
     kCanvas.width = 64;
     kCanvas.height = 128;
@@ -416,32 +408,56 @@ class RaceRenderer3D {
 
     const kerbMat = new THREE.MeshStandardMaterial({ map: kerbTex, roughness: 0.7 });
 
-    // Extract corner segments cleanly
-    const rightTurnPts = pts.filter((p) => p.x >= TRACK.straightHalfLen - 1);
-    const leftTurnPts = pts.filter((p) => p.x <= -TRACK.straightHalfLen + 1);
-
-    for (const seg of [rightTurnPts, leftTurnPts]) {
-      if (seg.length < 2) continue;
-      this.scene.add(
-        this.buildRibbonMesh(seg, -TRACK.halfWidth - 0.1, -TRACK.halfWidth + TRACK.kerbWidth, 0.045, kerbMat, 6)
+    let seg = [];
+    for (let i = 0; i < pts.length; i++) {
+      if (pts[i].isCorner) {
+        seg.push(pts[i]);
+      } else if (seg.length > 0) {
+        if (seg.length >= 2) {
+          targetGroup.add(
+            this.buildRibbonMesh(
+              seg,
+              -track.halfWidth - 0.1,
+              -track.halfWidth + track.kerbWidth,
+              0.045,
+              kerbMat,
+              6
+            )
+          );
+          targetGroup.add(
+            this.buildRibbonMesh(
+              seg,
+              track.halfWidth - track.kerbWidth,
+              track.halfWidth + 0.1,
+              0.045,
+              kerbMat,
+              6
+            )
+          );
+        }
+        seg = [];
+      }
+    }
+    if (seg.length >= 2) {
+      targetGroup.add(
+        this.buildRibbonMesh(seg, -track.halfWidth - 0.1, -track.halfWidth + track.kerbWidth, 0.045, kerbMat, 6)
       );
-      this.scene.add(
-        this.buildRibbonMesh(seg, TRACK.halfWidth - TRACK.kerbWidth, TRACK.halfWidth + 0.1, 0.045, kerbMat, 6)
+      targetGroup.add(
+        this.buildRibbonMesh(seg, track.halfWidth - track.kerbWidth, track.halfWidth + 0.1, 0.045, kerbMat, 6)
       );
     }
 
-    // 3. Outer & Inner 3D Barrier Walls
-    this.scene.add(this.buildBarrierWall(pts, TRACK.wallOuterOffset, 1.35, '#e82538', '#ffffff'));
-    this.scene.add(this.buildBarrierWall(pts, -TRACK.wallInnerOffset, 1.2, '#2272e6', '#ffffff'));
+    // 3. Barrier Walls
+    targetGroup.add(this.buildBarrierWall(pts, track.wallOuterOffset, 1.35, '#e82538', '#ffffff'));
+    targetGroup.add(this.buildBarrierWall(pts, -track.wallInnerOffset, 1.2, '#2272e6', '#ffffff'));
 
-    // 4. Start / Finish Checkered Line & 3D Gantry with 5 Light Pods
+    // 4. Start/Finish Line + 3D Start Gantry aligned to track startHeading
     const sfCanvas = document.createElement('canvas');
     sfCanvas.width = 256;
     sfCanvas.height = 32;
     const sfCtx = sfCanvas.getContext('2d');
     const cols = 16;
-    const rows = 2;
-    for (let r = 0; r < rows; r++) {
+    for (let r = 0; r < 2; r++) {
       for (let c = 0; c < cols; c++) {
         sfCtx.fillStyle = (r + c) % 2 === 0 ? '#ffffff' : '#141720';
         sfCtx.fillRect(c * (256 / cols), r * 16, 256 / cols, 16);
@@ -450,43 +466,44 @@ class RaceRenderer3D {
     const sfTex = new THREE.CanvasTexture(sfCanvas);
     sfTex.encoding = THREE.sRGBEncoding;
 
+    const startGroup = new THREE.Group();
+    startGroup.position.set(track.startX, 0, track.startZ);
+    startGroup.rotation.y = -track.startHeading;
+
     const finishStrip = new THREE.Mesh(
-      new THREE.PlaneGeometry(3.2, TRACK.halfWidth * 2 - 0.8),
+      new THREE.PlaneGeometry(3.2, track.halfWidth * 2 - 0.8),
       new THREE.MeshStandardMaterial({ map: sfTex, roughness: 0.75 })
     );
     finishStrip.rotation.x = -Math.PI / 2;
-    finishStrip.position.set(0, 0.04, TRACK.cornerRadius);
+    finishStrip.position.y = 0.04;
     finishStrip.receiveShadow = true;
-    this.scene.add(finishStrip);
+    startGroup.add(finishStrip);
 
-    // 3D Start Gantry Bridge at x = 0, z = cornerRadius
-    const gantry = new THREE.Group();
     const darkMetal = new THREE.MeshStandardMaterial({ color: 0x1c2335, roughness: 0.5 });
     const yellowTrim = new THREE.MeshStandardMaterial({ color: 0xffd22b, roughness: 0.4 });
 
     for (const side of [-1, 1]) {
       const pillar = new THREE.Mesh(new THREE.BoxGeometry(1.1, 7.2, 1.1), darkMetal);
-      pillar.position.set(0, 3.6, side * (TRACK.halfWidth + 1.6));
+      pillar.position.set(0, 3.6, side * (track.halfWidth + 1.6));
       pillar.castShadow = true;
-      gantry.add(pillar);
+      startGroup.add(pillar);
     }
 
     const beam = new THREE.Mesh(
-      new THREE.BoxGeometry(1.6, 1.5, TRACK.halfWidth * 2 + 4.4),
+      new THREE.BoxGeometry(1.6, 1.5, track.halfWidth * 2 + 4.4),
       darkMetal
     );
     beam.position.set(0, 7.1, 0);
     beam.castShadow = true;
-    gantry.add(beam);
+    startGroup.add(beam);
 
     const beamTrim = new THREE.Mesh(
-      new THREE.BoxGeometry(1.66, 0.25, TRACK.halfWidth * 2 + 4.4),
+      new THREE.BoxGeometry(1.66, 0.25, track.halfWidth * 2 + 4.4),
       yellowTrim
     );
     beamTrim.position.set(0, 7.8, 0);
-    gantry.add(beamTrim);
+    startGroup.add(beamTrim);
 
-    // 5 Start Light Pods facing oncoming driver (-X side of gantry)
     this.gantryLamps = [];
     for (let i = 0; i < 5; i++) {
       const lampMat = new THREE.MeshStandardMaterial({
@@ -497,12 +514,11 @@ class RaceRenderer3D {
       const pod = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.32, 0.25, 16), lampMat);
       pod.rotation.z = Math.PI / 2;
       pod.position.set(-0.85, 6.2, (i - 2) * 1.45);
-      gantry.add(pod);
+      startGroup.add(pod);
       this.gantryLamps.push(lampMat);
     }
 
-    gantry.position.set(0, 0, TRACK.cornerRadius);
-    this.scene.add(gantry);
+    targetGroup.add(startGroup);
   }
 
   setGantryLights(litCount, goGreen) {
@@ -586,8 +602,10 @@ class RaceRenderer3D {
     }
     this.particles = [];
     if (car) {
-      this.chaseCamPos.set(car.x - 8, 3.2, car.y);
-      this.chaseLookPos.set(car.x + 6, 0.9, car.y);
+      const cos = Math.cos(car.heading);
+      const sin = Math.sin(car.heading);
+      this.chaseCamPos.set(car.x - cos * 8, 3.2, car.y - sin * 8);
+      this.chaseLookPos.set(car.x + cos * 6, 0.9, car.y + sin * 6);
     }
   }
 
@@ -596,7 +614,7 @@ class RaceRenderer3D {
     const root = this.carVisual.root;
     root.updateMatrixWorld(true);
 
-    const speedRatio = Math.min(1, car.speed / 95);
+    const speedRatio = Math.min(1, car.speed / 104);
     const rumble =
       car.surface === 'grass'
         ? (Math.random() - 0.5) * 0.035
@@ -605,39 +623,35 @@ class RaceRenderer3D {
         : 0;
 
     if (this.cameraMode === 'tcam') {
-      // Classic F1 T-Cam above airbox looking over halo, nose & front tires
       const pos = new THREE.Vector3(-0.48, 1.34 + rumble, 0.0);
       const look = new THREE.Vector3(16, 0.45, 0);
       root.localToWorld(pos);
       root.localToWorld(look);
       this.camera.position.copy(pos);
       this.camera.lookAt(look);
-      this.camera.fov = 68 + speedRatio * 9;
+      this.camera.fov = 68 + speedRatio * 10;
     } else if (this.cameraMode === 'cockpit') {
-      // Driver POV inside helmet behind Halo pillar & steering wheel
       const pos = new THREE.Vector3(-0.06, 0.82 + rumble * 0.7, 0);
       const look = new THREE.Vector3(18, 0.62, 0);
       root.localToWorld(pos);
       root.localToWorld(look);
       this.camera.position.copy(pos);
       this.camera.lookAt(look);
-      this.camera.fov = 74 + speedRatio * 8;
+      this.camera.fov = 74 + speedRatio * 9;
     } else if (this.cameraMode === 'wing') {
-      // Low Front-Wing Camera inches above asphalt
       const pos = new THREE.Vector3(2.22, 0.42 + rumble * 1.1, 0);
       const look = new THREE.Vector3(20, 0.34, 0);
       root.localToWorld(pos);
       root.localToWorld(look);
       this.camera.position.copy(pos);
       this.camera.lookAt(look);
-      this.camera.fov = 82 + speedRatio * 10;
+      this.camera.fov = 82 + speedRatio * 11;
     } else {
-      // Chase Camera behind car
       const cos = Math.cos(car.heading);
       const sin = Math.sin(car.heading);
       const targetPos = new THREE.Vector3(
         car.x - cos * 7.6,
-        3.1 + speedRatio * 0.4,
+        3.1 + speedRatio * 0.45,
         car.y - sin * 7.6
       );
       const targetLook = new THREE.Vector3(
@@ -649,7 +663,7 @@ class RaceRenderer3D {
       this.chaseLookPos.lerp(targetLook, Math.min(1, dt * 14));
       this.camera.position.copy(this.chaseCamPos);
       this.camera.lookAt(this.chaseLookPos);
-      this.camera.fov = 64 + speedRatio * 8;
+      this.camera.fov = 64 + speedRatio * 9;
     }
 
     this.camera.updateProjectionMatrix();
@@ -676,36 +690,39 @@ class RaceRenderer3D {
     const ctx = this.minimapCtx;
     const mw = this.minimapCanvas.width;
     const mh = this.minimapCanvas.height;
+    const tr = this.track;
 
     ctx.clearRect(0, 0, mw, mh);
 
     ctx.save();
-    ctx.translate(mw / 2, mh / 2);
-    ctx.scale(0.25, 0.25);
-
-    const L = TRACK.straightHalfLen;
-    const R = TRACK.cornerRadius;
+    ctx.translate(mw / 2 + tr.minimapOffsetX, mh / 2 + tr.minimapOffsetZ);
+    ctx.scale(tr.minimapScale, tr.minimapScale);
 
     ctx.beginPath();
-    ctx.moveTo(-L, R);
-    ctx.lineTo(L, R);
-    ctx.arc(L, 0, R, Math.PI / 2, -Math.PI / 2, true);
-    ctx.lineTo(-L, -R);
-    ctx.arc(-L, 0, R, -Math.PI / 2, Math.PI / 2, true);
+    for (let i = 0; i < tr.pts.length; i++) {
+      const p = tr.pts[i];
+      if (i === 0) ctx.moveTo(p.x, p.z);
+      else ctx.lineTo(p.x, p.z);
+    }
     ctx.closePath();
 
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
-    ctx.lineWidth = TRACK.halfWidth * 2.2;
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.38)';
+    ctx.lineWidth = tr.halfWidth * 2.4;
+    ctx.lineJoin = 'round';
     ctx.stroke();
 
+    // Start/finish dot
     ctx.fillStyle = '#ffd22b';
-    ctx.fillRect(-5, TRACK.cornerRadius - 20, 10, 40);
+    ctx.beginPath();
+    ctx.arc(tr.startX, tr.startZ, 18, 0, Math.PI * 2);
+    ctx.fill();
 
+    // Car marker
     ctx.fillStyle = car.team.primary;
     ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 8;
+    ctx.lineWidth = 10;
     ctx.beginPath();
-    ctx.arc(car.x, car.y, 18, 0, Math.PI * 2);
+    ctx.arc(car.x, car.y, 24, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
 

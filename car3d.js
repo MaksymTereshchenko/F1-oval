@@ -282,6 +282,7 @@ function createF1Car3D(team) {
     root: group,
     helmetGroup,
     wheelPivot,
+    rwDrs,
     frontWheelPivots,
     wheelMeshes,
     matRainLight,
@@ -298,6 +299,12 @@ function createF1Car3D(team) {
       // Hide helmet in Cockpit POV so it doesn't obstruct camera
       this.helmetGroup.visible = cameraMode !== 'cockpit';
 
+      // DRS Rear Wing Flap animation (opens flat on straight, closes on brake/toggle)
+      const targetFlapRot = car.drsOpen ? -0.04 : 0.34;
+      const targetFlapY = car.drsOpen ? 1.02 : 0.96;
+      this.rwDrs.rotation.z += (targetFlapRot - this.rwDrs.rotation.z) * Math.min(1, dt * 16);
+      this.rwDrs.position.y += (targetFlapY - this.rwDrs.position.y) * Math.min(1, dt * 16);
+
       // Steer front wheels & steering wheel
       for (const fw of this.frontWheelPivots) {
         fw.rotation.y = -car.steerAngle * 1.15;
@@ -310,7 +317,7 @@ function createF1Car3D(team) {
         wm.rotation.z -= spinDelta;
       }
 
-      // Brake rain light glow
+      // Brake rain light glow (or subtle ERS energy harvesting flash)
       if (car.brake > 0.15) {
         this.matRainLight.emissive.setHex(0xff1a30);
         this.matRainLight.emissiveIntensity = 1.6;

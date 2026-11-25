@@ -264,6 +264,84 @@ class SoundEngine {
     osc.start(now);
     osc.stop(now + duration);
   }
+
+  /**
+   * F1 25-style crisp futuristic ERS battery activation "psik" sound.
+   */
+  playErsActivate() {
+    if (this.muted || this.volume <= 0 || !this.ctx) return;
+    const now = this.ctx.currentTime;
+
+    // 1. Clean high-tech rising telemetry chirp
+    const osc = this.ctx.createOscillator();
+    const oscGain = this.ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(1450, now);
+    osc.frequency.exponentialRampToValueAtTime(2950, now + 0.055);
+
+    oscGain.gain.setValueAtTime(0.001, now);
+    oscGain.gain.linearRampToValueAtTime(0.22, now + 0.008);
+    oscGain.gain.exponentialRampToValueAtTime(0.001, now + 0.075);
+
+    osc.connect(oscGain);
+    oscGain.connect(this.masterGain);
+    osc.start(now);
+    osc.stop(now + 0.08);
+
+    // 2. Crisp soft filtered air "psik" transient
+    if (this.noiseBuffer) {
+      const src = this.ctx.createBufferSource();
+      src.buffer = this.noiseBuffer;
+
+      const bp = this.ctx.createBiquadFilter();
+      bp.type = 'bandpass';
+      bp.frequency.setValueAtTime(4800, now);
+      bp.frequency.exponentialRampToValueAtTime(6800, now + 0.06);
+      bp.Q.value = 3.2;
+
+      const nGain = this.ctx.createGain();
+      nGain.gain.setValueAtTime(0.14, now);
+      nGain.gain.exponentialRampToValueAtTime(0.001, now + 0.065);
+
+      src.connect(bp);
+      bp.connect(nGain);
+      nGain.connect(this.masterGain);
+      src.start(now);
+      src.stop(now + 0.07);
+    }
+  }
+
+  playErsDeactivate() {
+    if (this.muted || this.volume <= 0 || !this.ctx) return;
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(1250, now);
+    osc.frequency.exponentialRampToValueAtTime(760, now + 0.055);
+    gain.gain.setValueAtTime(0.12, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+    osc.connect(gain);
+    gain.connect(this.masterGain);
+    osc.start(now);
+    osc.stop(now + 0.065);
+  }
+
+  playDrsToggle(isOpen) {
+    if (this.muted || this.volume <= 0 || !this.ctx) return;
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(isOpen ? 920 : 620, now);
+    osc.frequency.exponentialRampToValueAtTime(isOpen ? 1320 : 480, now + 0.04);
+    gain.gain.setValueAtTime(0.11, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.045);
+    osc.connect(gain);
+    gain.connect(this.masterGain);
+    osc.start(now);
+    osc.stop(now + 0.05);
+  }
 }
 
 window.F1 = window.F1 || {};

@@ -114,6 +114,53 @@ body {
   font-weight: 600;
 }
 
+/* Circuit Selector */
+.track-selector {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.track-pill {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: rgba(15, 22, 42, 0.85);
+  border: 2px solid rgba(255, 255, 255, 0.16);
+  border-radius: 14px;
+  padding: 7px 18px;
+  color: var(--text-muted);
+  font-family: 'Exo 2', sans-serif;
+  cursor: pointer;
+  transition: transform 0.12s ease, border-color 0.12s ease, background 0.12s ease;
+}
+
+.track-pill:hover {
+  border-color: rgba(255, 255, 255, 0.4);
+  color: #fff;
+}
+
+.track-pill.active {
+  background: linear-gradient(180deg, rgba(255, 210, 43, 0.2), rgba(255, 183, 0, 0.1));
+  border-color: var(--accent-yellow);
+  color: #fff;
+  box-shadow: 0 0 18px rgba(255, 210, 43, 0.25);
+}
+
+.track-name {
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 0.7px;
+}
+
+.track-meta {
+  font-size: 10px;
+  font-weight: 700;
+  opacity: 0.8;
+}
+
 /* Team Cards Grid */
 .team-grid {
   position: relative;
@@ -647,15 +694,50 @@ kbd {
 }
 
 .speedo-card {
-  width: 265px;
+  width: 295px;
   padding: 12px 16px 14px;
 }
 
 .speedo-main {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
   margin-bottom: 10px;
+}
+
+.sys-toggles {
+  margin-left: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  pointer-events: auto;
+}
+
+.sys-btn {
+  border: 2px solid rgba(255, 255, 255, 0.22);
+  border-radius: 9px;
+  padding: 3px 10px;
+  font-family: 'Exo 2', sans-serif;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.8px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.sys-btn.ers.active {
+  background: linear-gradient(180deg, #ffe34d, #ffaa00);
+  color: #161306;
+  border-color: #fff7c2;
+  box-shadow: 0 0 14px rgba(255, 210, 43, 0.6);
+}
+
+.sys-btn.drs.active {
+  background: linear-gradient(180deg, #42f59b, #14bd68);
+  color: #062112;
+  border-color: #b5ffda;
+  box-shadow: 0 0 14px rgba(46, 229, 143, 0.6);
 }
 
 .gear-badge {
@@ -724,6 +806,11 @@ kbd {
 
 .bar-fill.aero {
   background: linear-gradient(90deg, #00c6ff, #2de2e6);
+}
+
+.bar-fill.ers-fill {
+  background: linear-gradient(90deg, #ffaa00, #ffe652);
+  width: 100%;
 }
 
 .bar-fill.grip {
@@ -820,6 +907,94 @@ body.is-touch .touch-controls {
   gap: 12px;
   pointer-events: auto;
   touch-action: none;
+}
+
+.touch-right-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+  pointer-events: auto;
+  touch-action: none;
+}
+
+.touch-sys-row {
+  display: flex;
+  gap: 10px;
+}
+
+.touch-sys-btn {
+  width: 68px;
+  height: 38px;
+  border-radius: 12px;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  background: rgba(18, 26, 48, 0.85);
+  color: var(--text-muted);
+  font-family: 'Exo 2', sans-serif;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.8px;
+  cursor: pointer;
+  touch-action: none;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.38);
+}
+
+.touch-sys-btn.ers.active {
+  background: linear-gradient(180deg, #ffe34d, #ffaa00);
+  color: #161306;
+  border-color: #fff7c2;
+  box-shadow: 0 0 16px rgba(255, 210, 43, 0.7);
+}
+
+.touch-sys-btn.drs.active {
+  background: linear-gradient(180deg, #42f59b, #14bd68);
+  color: #062112;
+  border-color: #b5ffda;
+  box-shadow: 0 0 16px rgba(46, 229, 143, 0.7);
+}
+
+/* ==================== PORTRAIT ROTATE OVERLAY ==================== */
+.rotate-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+  background: radial-gradient(circle at 50% 35%, #1d2b53 0%, #0d1324 100%);
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 28px;
+  gap: 14px;
+}
+
+.rotate-phone-icon {
+  font-size: 56px;
+  animation: tilt-phone 1.6s ease-in-out infinite;
+}
+
+@keyframes tilt-phone {
+  0%, 25% { transform: rotate(0deg); }
+  65%, 100% { transform: rotate(-90deg); }
+}
+
+.rotate-title {
+  font-size: 22px;
+  font-weight: 900;
+  color: #fff;
+}
+
+.rotate-sub {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-muted);
+  max-width: 280px;
+}
+
+@media (hover: none) and (pointer: coarse) and (orientation: portrait) {
+  .rotate-overlay {
+    display: flex;
+  }
 }
 
 .touch-btn {
@@ -1024,45 +1199,63 @@ body.is-touch .touch-controls {
   }
 
   .game-title {
-    font-size: 26px;
+    font-size: 22px;
+  }
+
+  .track-selector {
+    margin-top: 4px;
+    gap: 8px;
+  }
+
+  .track-pill {
+    padding: 4px 12px;
+    border-radius: 10px;
+  }
+
+  .track-name {
+    font-size: 11px;
+  }
+
+  .track-meta {
+    display: none;
   }
 
   .team-grid {
     grid-template-columns: repeat(4, minmax(140px, 1fr));
-    gap: 10px;
-    margin: 8px 0;
+    gap: 8px;
+    margin: 6px 0;
   }
 
   .team-card {
-    padding: 8px 10px;
+    padding: 6px 8px;
   }
 
   .car-preview-wrap {
-    height: 54px;
-    margin-bottom: 6px;
+    height: 44px;
+    margin-bottom: 4px;
   }
 
   .car-preview-wrap canvas {
-    max-height: 50px;
+    max-height: 42px;
     width: auto;
   }
 
   .team-name {
-    font-size: 15px;
+    font-size: 14px;
   }
 
   .team-driver {
-    margin-bottom: 6px;
-    font-size: 11px;
+    margin-bottom: 4px;
+    font-size: 10px;
   }
 
   .stat-list {
-    gap: 4px;
+    gap: 3px;
   }
 
   .start-btn {
-    padding: 10px 36px;
-    font-size: 18px;
+    padding: 8px 34px;
+    font-size: 17px;
   }
 
   .hud-bottom {

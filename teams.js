@@ -1,3 +1,4 @@
+(() => {
 window.F1 = window.F1 || {};
 
 const TEAMS_2024 = [
@@ -13,16 +14,15 @@ const TEAMS_2024 = [
     accent: '#27C4FF',
     helmet: '#D8FF00',
     stats: {
-      topSpeed: 93,
-      downforce: 95,
-      accel: 94,
+      topSpeed: 94,
+      downforce: 96,
+      accel: 95,
     },
-    // Slight personality differences, all balanced & fast
     tuning: {
-      maxSpeedMs: 93.0,     // ~335 km/h
-      accelForce: 33.5,
+      maxSpeedMs: 99.0,      // ~356 km/h base (~380+ with ERS + DRS)
+      accelForce: 40.5,
       downforceCoeff: 0.0046,
-      mechGrip: 14.8,
+      mechGrip: 16.0,
     },
   },
   {
@@ -37,15 +37,15 @@ const TEAMS_2024 = [
     accent: '#FFD300',
     helmet: '#FF2A4B',
     stats: {
-      topSpeed: 96,
-      downforce: 93,
-      accel: 92,
+      topSpeed: 98,
+      downforce: 94,
+      accel: 94,
     },
     tuning: {
-      maxSpeedMs: 94.5,     // ~340 km/h
-      accelForce: 33.0,
+      maxSpeedMs: 100.5,     // ~362 km/h base (~385+ with ERS + DRS)
+      accelForce: 39.8,
       downforceCoeff: 0.00445,
-      mechGrip: 14.5,
+      mechGrip: 15.6,
     },
   },
   {
@@ -60,15 +60,15 @@ const TEAMS_2024 = [
     accent: '#FFFFFF',
     helmet: '#FFFFFF',
     stats: {
-      topSpeed: 94,
-      downforce: 91,
-      accel: 96,
+      topSpeed: 96,
+      downforce: 92,
+      accel: 98,
     },
     tuning: {
-      maxSpeedMs: 93.6,     // ~337 km/h
-      accelForce: 34.5,
+      maxSpeedMs: 99.6,      // ~359 km/h base
+      accelForce: 41.8,
       downforceCoeff: 0.00435,
-      mechGrip: 14.9,
+      mechGrip: 16.2,
     },
   },
   {
@@ -83,23 +83,19 @@ const TEAMS_2024 = [
     accent: '#C9D1D9',
     helmet: '#A6FF00',
     stats: {
-      topSpeed: 92,
-      downforce: 94,
-      accel: 93,
+      topSpeed: 93,
+      downforce: 95,
+      accel: 94,
     },
     tuning: {
-      maxSpeedMs: 92.6,     // ~333 km/h
-      accelForce: 33.2,
+      maxSpeedMs: 98.4,      // ~354 km/h base
+      accelForce: 40.0,
       downforceCoeff: 0.00455,
-      mechGrip: 15.1,
+      mechGrip: 16.4,
     },
   },
 ];
 
-/**
- * Draws a bright, cartoonish top-down 2024 F1 car facing +X (right).
- * Centered at (0, 0), car length ~66px, width ~28px.
- */
 function drawF1Car(ctx, team, options = {}) {
   const {
     steerAngle = 0,
@@ -112,7 +108,6 @@ function drawF1Car(ctx, team, options = {}) {
   ctx.save();
   ctx.scale(scale, scale);
 
-  // Drop shadow
   if (showShadow) {
     ctx.save();
     ctx.translate(4, 5);
@@ -122,31 +117,24 @@ function drawF1Car(ctx, team, options = {}) {
     ctx.restore();
   }
 
-  // Suspension arms
   ctx.strokeStyle = '#1d222c';
   ctx.lineWidth = 2.6;
   ctx.beginPath();
-  // Front suspension
   ctx.moveTo(15, -4);
   ctx.lineTo(17, -12);
   ctx.moveTo(15, 4);
   ctx.lineTo(17, 12);
-  // Rear suspension
   ctx.moveTo(-19, -5);
   ctx.lineTo(-20, -12);
   ctx.moveTo(-19, 5);
   ctx.lineTo(-20, 12);
   ctx.stroke();
 
-  // Rear Wheels
   drawTire(ctx, -20, -12.5, 13, 6.6, 0, team.accent);
   drawTire(ctx, -20, 12.5, 13, 6.6, 0, team.accent);
-
-  // Front Wheels (with steering angle)
   drawTire(ctx, 17, -12.5, 12.2, 6.2, steerAngle, team.accent);
   drawTire(ctx, 17, 12.5, 12.2, 6.2, steerAngle, team.accent);
 
-  // Rear Wing
   ctx.fillStyle = team.secondary;
   ctx.strokeStyle = '#11151d';
   ctx.lineWidth = 1.8;
@@ -154,16 +142,13 @@ function drawF1Car(ctx, team, options = {}) {
   ctx.fill();
   ctx.stroke();
 
-  // Rear wing accent flap
   ctx.fillStyle = team.primary;
   ctx.fillRect(-31, -10.5, 3, 21);
 
-  // Floor / bargeboard dark edge
   ctx.fillStyle = '#141820';
   roundRectPath(ctx, -25, -10, 38, 20, 5);
   ctx.fill();
 
-  // Sidepods & Main Body
   ctx.fillStyle = team.primary;
   ctx.strokeStyle = '#0e121a';
   ctx.lineWidth = 2;
@@ -182,7 +167,6 @@ function drawF1Car(ctx, team, options = {}) {
   ctx.fill();
   ctx.stroke();
 
-  // Team Livery Stripes / Sidepod accents
   ctx.fillStyle = team.secondary;
   ctx.beginPath();
   ctx.moveTo(-18, -7);
@@ -200,12 +184,10 @@ function drawF1Car(ctx, team, options = {}) {
   ctx.closePath();
   ctx.fill();
 
-  // Nose stripe
   ctx.fillStyle = team.accent;
   roundRectPath(ctx, 14, -1.8, 15, 3.6, 1.5);
   ctx.fill();
 
-  // Front Wing
   ctx.fillStyle = team.primary;
   ctx.strokeStyle = '#0e121a';
   ctx.lineWidth = 1.8;
@@ -213,22 +195,18 @@ function drawF1Car(ctx, team, options = {}) {
   ctx.fill();
   ctx.stroke();
 
-  // Front wing endplates
   ctx.fillStyle = team.secondary;
   ctx.fillRect(24.5, -15, 8, 2.8);
   ctx.fillRect(24.5, 12.2, 8, 2.8);
 
-  // Engine cover fin
   ctx.fillStyle = team.secondary;
   roundRectPath(ctx, -21, -2.4, 15, 4.8, 2);
   ctx.fill();
 
-  // Cockpit opening
   ctx.fillStyle = '#0c0f15';
   roundRectPath(ctx, -5, -4.2, 13, 8.4, 4);
   ctx.fill();
 
-  // Driver Helmet
   ctx.fillStyle = team.helmet;
   ctx.strokeStyle = '#0e121a';
   ctx.lineWidth = 1.5;
@@ -237,13 +215,11 @@ function drawF1Car(ctx, team, options = {}) {
   ctx.fill();
   ctx.stroke();
 
-  // Visor
   ctx.fillStyle = '#111622';
   ctx.beginPath();
   ctx.arc(2.1, 0, 2.1, -Math.PI * 0.45, Math.PI * 0.45);
   ctx.fill();
 
-  // Halo
   ctx.strokeStyle = '#181c26';
   ctx.lineWidth = 2.1;
   ctx.beginPath();
@@ -256,7 +232,6 @@ function drawF1Car(ctx, team, options = {}) {
   ctx.lineTo(10.5, 0);
   ctx.stroke();
 
-  // Rear Rain / ERS Braking Light
   if (isBraking) {
     ctx.fillStyle = '#ff2038';
     ctx.shadowColor = '#ff2038';
@@ -264,7 +239,6 @@ function drawF1Car(ctx, team, options = {}) {
     ctx.fillRect(-34, -2, 3, 4);
     ctx.shadowBlur = 0;
   } else if (throttle > 0.7) {
-    // Subtle exhaust flame pop
     ctx.fillStyle = 'rgba(255, 190, 50, 0.75)';
     ctx.beginPath();
     ctx.moveTo(-33, -1.6);
@@ -289,7 +263,6 @@ function drawTire(ctx, cx, cy, w, h, angle, rimColor) {
   ctx.fill();
   ctx.stroke();
 
-  // Cartoon tire compound ring line
   ctx.fillStyle = rimColor;
   ctx.fillRect(-w * 0.25, -h * 0.16, w * 0.5, h * 0.32);
 
@@ -309,3 +282,4 @@ function roundRectPath(ctx, x, y, w, h, r) {
 
 window.F1.TEAMS_2024 = TEAMS_2024;
 window.F1.drawF1Car = drawF1Car;
+})();

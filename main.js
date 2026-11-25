@@ -1,10 +1,11 @@
 (() => {
-const { TEAMS_2024, drawF1Car, F1CarPhysics, RaceRenderer3D, SoundEngine } = window.F1;
+const { TEAMS_2024, TRACKS, drawF1Car, F1CarPhysics, RaceRenderer3D, SoundEngine } = window.F1;
 
 // DOM Elements
 const menuScreen = document.getElementById('menu-screen');
 const raceScreen = document.getElementById('race-screen');
 const teamGrid = document.getElementById('team-grid');
+const trackPills = Array.from(document.querySelectorAll('.track-pill'));
 const startBtn = document.getElementById('start-btn');
 
 const viewport3d = document.getElementById('viewport-3d');
@@ -19,12 +20,19 @@ const hudBestTime = document.getElementById('hud-best-time');
 
 const hudGear = document.getElementById('hud-gear');
 const hudSpeed = document.getElementById('hud-speed');
+const hudErsBar = document.getElementById('hud-ers-bar');
+const hudErsVal = document.getElementById('hud-ers-val');
 const hudDownforceBar = document.getElementById('hud-downforce-bar');
 const hudDownforceVal = document.getElementById('hud-downforce-val');
 const hudGripBar = document.getElementById('hud-grip-bar');
 const hudGripState = document.getElementById('hud-grip-state');
 const hudThrottleBar = document.getElementById('hud-throttle-bar');
 const hudBrakeBar = document.getElementById('hud-brake-bar');
+
+const hudErsBtn = document.getElementById('hud-ers-btn');
+const hudDrsBtn = document.getElementById('hud-drs-btn');
+const touchErsBtn = document.getElementById('touch-ers');
+const touchDrsBtn = document.getElementById('touch-drs');
 
 const startLightsEl = document.getElementById('start-lights');
 const lightsTextEl = document.getElementById('lights-text');
@@ -40,7 +48,8 @@ const garageBtn = document.getElementById('garage-btn');
 
 // Game State
 let selectedTeam = TEAMS_2024[0];
-const car = new F1CarPhysics(selectedTeam);
+let selectedTrack = TRACKS.oval;
+const car = new F1CarPhysics(selectedTeam, selectedTrack);
 const renderer = new RaceRenderer3D(viewport3d, minimapCanvas);
 const sound = new SoundEngine();
 
@@ -83,7 +92,16 @@ const input = {
   },
 };
 
-// ==================== MENU SETUP ====================
+// ==================== MENU & TRACK SETUP ====================
+trackPills.forEach((pill) => {
+  pill.addEventListener('click', () => {
+    const id = pill.dataset.track;
+    if (!TRACKS[id]) return;
+    selectedTrack = TRACKS[id];
+    trackPills.forEach((el) => el.classList.toggle('active', el === pill));
+  });
+});
+
 function buildTeamCards() {
   teamGrid.innerHTML = '';
 
@@ -134,7 +152,7 @@ function buildTeamCards() {
   });
 }
 
-// ==================== CAMERA CONTROLS ====================
+// ==================== CAMERA, ERS & DRS CONTROLS ====================
 function setCamera(mode) {
   renderer.setCameraMode(mode);
   camButtons.forEach((btn) => {
@@ -149,17 +167,71 @@ camButtons.forEach((btn) => {
   });
 });
 
+function handleErsToggle() {
+  if (!isRacing) return;
+  sound.init();
+  const res = car.toggleErs();
+  if (res.changed) {
+    if (res.active) {
+      sound.playErsActivate();
+    } else {
+      sound.playErsDeactivate();
+    }
+  }
+  syncSysButtons();
+}
+
+function handleDrsToggle() {
+  if (!isRacing) return;
+  sound.init();
+  const isOpen = car.toggleDrs();
+  sound.playDrsToggle(isOpen);
+  syncSysButtons();
+}
+
+function syncSysButtons() {
+  hudErsBtn.classList.toggle('active', car.ersActive);
+  touchErsBtn.classList.toggle('active', car.ersActive);
+  hudDrsBtn.classList.toggle('active', car.drsOpen);
+  touchDrsBtn.classList.toggle('active', car.drsOpen);
+}
+
+hudErsBtn.addEventListener('click', () => {
+  handleErsToggle();
+  hudErsBtn.blur();
+});
+hudDrsBtn.addEventListener('click', () => {
+  handleDrsToggle();
+  hudDrsBtn.blur();
+});
+
+touchErsBtn.addEventListener('pointerdown', (e) => {
+  e.preventDefault();
+  handleErsToggle();
+});
+touchDrsBtn.addEventListener('pointerdown', (e) => {
+  e.preventDefault();
+  handleDrsToggle();
+});
+
 // ==================== RACE FLOW ====================
 function startRace() {
   sound.init();
+  if (screen.orientation && screen.orientation.lock) {
+    screen.orientation.lock('landscape').catch(() => {});
+  }
+
   car.setTeam(selectedTeam);
+  car.setTrack(selectedTrack);
+  renderer.setTrack(selectedTrack);
+
   menuScreen.classList.remove('active');
   raceScreen.classList.add('active');
   renderer.resize();
 
   hudTeamDot.style.background = `linear-gradient(180deg, ${selectedTeam.primary}, ${selectedTeam.secondary})`;
   hudTeamName.textContent = selectedTeam.name.toUpperCase();
-  hudChassis.textContent = `${selectedTeam.chassis} • #${selectedTeam.number}`;
+  hudChassis.textContent = `${selectedTeam.chassis} • ${selectedTrack.name.toUpperCase()}`;
 
   isRacing = true;
   resetSession();
@@ -169,6 +241,7 @@ function resetSession() {
   car.reset();
   renderer.resetEffects(car);
   renderer.setGantryLights(0, false);
+  syncSysButtons();
 
   lapNumber = 1;
   lapTime = 0;
@@ -248,7 +321,11 @@ function updateHUD() {
   hudGear.textContent = car.gear;
   hudCurrentTime.textContent = formatTime(lapTime);
 
-  const dfPct = Math.min(100, (car.downforceG / 4.2) * 100);
+  const ersPct = Math.round(car.ersEnergy);
+  hudErsBar.style.width = `${ersPct}%`;
+  hudErsVal.textContent = `${ersPct}%`;
+
+  const dfPct = Math.min(100, (car.downforceG / 4.8) * 100);
   hudDownforceBar.style.width = `${dfPct.toFixed(0)}%`;
   hudDownforceVal.textContent = `${car.downforceG.toFixed(1)}G`;
 
@@ -267,6 +344,8 @@ function updateHUD() {
 
   hudThrottleBar.style.height = `${Math.round(car.throttle * 100)}%`;
   hudBrakeBar.style.height = `${Math.round(car.brake * 100)}%`;
+
+  syncSysButtons();
 }
 
 // ==================== MAIN LOOP ====================
@@ -279,7 +358,6 @@ function loop(now) {
     if (racePhase === 'countdown') {
       updateCountdown(dt);
       car.step(dt, input, false);
-      sound.update(0.2 + (input.up ? 0.35 : 0), input.up ? 0.5 : 0, 0, true);
     } else if (racePhase === 'running') {
       lapTime += dt;
       const { crossedFinish } = car.step(dt, input, true);
@@ -297,9 +375,6 @@ function loop(now) {
         lapTime = 0;
         hudLap.textContent = String(lapNumber);
       }
-
-      const slipAudio = car.isSliding ? Math.max(0.4, car.gripUsage - 0.65) : 0;
-      sound.update(car.rpmRatio, car.throttle, slipAudio, true);
     }
 
     renderer.render(car, dt);
@@ -317,6 +392,19 @@ function handleKey(e, isDown) {
     if (isRacing) {
       const mode = renderer.cycleCameraMode();
       setCamera(mode);
+    }
+    return;
+  }
+
+  if (isDown && !e.repeat && (e.code === 'KeyE' || keyLower === 'e' || keyLower === 'у')) {
+    handleErsToggle();
+    return;
+  }
+
+  if (isDown && !e.repeat && (e.code === 'Space' || e.code === 'KeyF' || keyLower === 'а')) {
+    if (isRacing) {
+      e.preventDefault();
+      handleDrsToggle();
     }
     return;
   }
@@ -360,7 +448,7 @@ function handleKey(e, isDown) {
       return;
   }
 
-  if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) {
+  if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) {
     e.preventDefault();
   }
 }
