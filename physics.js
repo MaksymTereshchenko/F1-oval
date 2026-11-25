@@ -138,14 +138,14 @@ class F1CarPhysics {
     // Speed-sensitive F1 steering: full lock at hairpin speeds, razor-sharp high-downforce steering at 250+ km/h
     const wheelbase = 3.55;
     const speedFactor = clamp(this.speed / t.maxSpeedMs, 0, 1);
-    const baseSteerLimit = 0.44 * (1 - 0.84 * Math.pow(speedFactor, 0.72));
+    const baseSteerLimit = 0.48 * (1 - 0.80 * Math.pow(speedFactor, 0.72));
     const gripSteerCap =
       forwardSpeed > 14
-        ? Math.atan(((maxLateralAccel * 1.08) / (forwardSpeed * forwardSpeed)) * wheelbase)
-        : 0.44;
-    const dynamicSteerLimit = Math.max(0.032, Math.min(baseSteerLimit, gripSteerCap));
+        ? Math.atan(((maxLateralAccel * 1.12) / (forwardSpeed * forwardSpeed)) * wheelbase)
+        : 0.48;
+    const dynamicSteerLimit = Math.max(0.04, Math.min(baseSteerLimit, gripSteerCap));
     const desiredSteer = targetSteer * dynamicSteerLimit;
-    this.steerAngle += (desiredSteer - this.steerAngle) * Math.min(1, dt * 16);
+    this.steerAngle += (desiredSteer - this.steerAngle) * Math.min(1, dt * 24);
 
     // Longitudinal acceleration + ERS boost
     const effectiveMaxSpeed = t.maxSpeedMs * (ersUsing ? 1.055 : 1.0);
@@ -161,9 +161,9 @@ class F1CarPhysics {
 
     if (this.brake > 0.01) {
       if (vForward > 1.5) {
-        longAccel -= this.brake * (38 + aeroLatGrip * 0.5);
+        longAccel -= this.brake * (46 + aeroLatGrip * 0.52);
       } else {
-        longAccel -= this.brake * 12;
+        longAccel -= this.brake * 14;
       }
     }
 
@@ -200,8 +200,8 @@ class F1CarPhysics {
 
     this.heading += actualYawRate * dt;
 
-    // High lateral tire stiffness keeps F1 car planted on rails (no rally drift)
-    const lateralDamping = isGrass ? 7.5 : 22.0;
+    // High lateral tire stiffness keeps F1 car glued to rails
+    const lateralDamping = isGrass ? 8.5 : 28.0;
     vLateral *= Math.exp(-lateralDamping * dt);
 
     const newCos = Math.cos(this.heading);

@@ -356,7 +356,7 @@ function updateHUD() {
   hudErsBar.style.width = `${ersPct}%`;
   hudErsVal.textContent = `${ersPct}%`;
 
-  const dfPct = Math.min(100, (car.downforceG / 4.8) * 100);
+  const dfPct = Math.min(100, (car.downforceG / 8.5) * 100);
   hudDownforceBar.style.width = `${dfPct.toFixed(0)}%`;
   hudDownforceVal.textContent = `${car.downforceG.toFixed(1)}G`;
 

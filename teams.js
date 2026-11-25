@@ -20,9 +20,9 @@ const TEAMS_2024 = [
     },
     tuning: {
       maxSpeedMs: 99.0,      // ~356 km/h base (~380+ with ERS + DRS)
-      accelForce: 40.5,
-      downforceCoeff: 0.0046,
-      mechGrip: 16.0,
+      accelForce: 43.0,
+      downforceCoeff: 0.0092,
+      mechGrip: 22.0,
     },
   },
   {
@@ -43,9 +43,9 @@ const TEAMS_2024 = [
     },
     tuning: {
       maxSpeedMs: 100.5,     // ~362 km/h base (~385+ with ERS + DRS)
-      accelForce: 39.8,
-      downforceCoeff: 0.00445,
-      mechGrip: 15.6,
+      accelForce: 42.2,
+      downforceCoeff: 0.0089,
+      mechGrip: 21.5,
     },
   },
   {
@@ -66,9 +66,9 @@ const TEAMS_2024 = [
     },
     tuning: {
       maxSpeedMs: 99.6,      // ~359 km/h base
-      accelForce: 41.8,
-      downforceCoeff: 0.00435,
-      mechGrip: 16.2,
+      accelForce: 44.2,
+      downforceCoeff: 0.0087,
+      mechGrip: 22.4,
     },
   },
   {
@@ -89,9 +89,9 @@ const TEAMS_2024 = [
     },
     tuning: {
       maxSpeedMs: 98.4,      // ~354 km/h base
-      accelForce: 40.0,
-      downforceCoeff: 0.00455,
-      mechGrip: 16.4,
+      accelForce: 42.5,
+      downforceCoeff: 0.0091,
+      mechGrip: 22.8,
     },
   },
 ];
