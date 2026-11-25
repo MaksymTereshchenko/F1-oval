@@ -114,12 +114,10 @@ class F1CarPhysics {
       }
     }
 
-    // Speed-sensitive steering
-    const maxSteerRad = 0.45;
-    const speedFactor = clamp(this.speed / t.maxSpeedMs, 0, 1);
-    const dynamicSteerLimit = maxSteerRad * (1 - 0.56 * speedFactor);
-    const desiredSteer = targetSteer * dynamicSteerLimit;
-    this.steerAngle += (desiredSteer - this.steerAngle) * Math.min(1, dt * 14);
+    const isGrass = this.surface === 'grass';
+    const isKerb = this.surface === 'kerb';
+    const surfaceGrip = isGrass ? 0.52 : isKerb ? 0.96 : 1.0;
+    const surfaceRollingDrag = isGrass ? 0.022 : 0.002;
 
     const cosH = Math.cos(this.heading);
     const sinH = Math.sin(this.heading);
@@ -129,18 +127,25 @@ class F1CarPhysics {
     let vForward = this.vx * cosH + this.vy * sinH;
     let vLateral = this.vx * rightX + this.vy * rightY;
 
-    const isGrass = this.surface === 'grass';
-    const isKerb = this.surface === 'kerb';
-    const surfaceGrip = isGrass ? 0.52 : isKerb ? 0.96 : 1.0;
-    const surfaceRollingDrag = isGrass ? 0.022 : 0.002;
-
     // Aerodynamic downforce (~ v^2); open DRS reduces rear wing downforce slightly
     const forwardSpeed = Math.max(0, vForward);
-    const drsDfMult = this.drsOpen ? 0.88 : 1.0;
+    const drsDfMult = this.drsOpen ? 0.86 : 1.0;
     const aeroLatGrip = t.downforceCoeff * forwardSpeed * forwardSpeed * drsDfMult;
     this.downforceG = aeroLatGrip / 9.81;
 
     const maxLateralAccel = surfaceGrip * (t.mechGrip + aeroLatGrip);
+
+    // Speed-sensitive F1 steering: full lock at hairpin speeds, razor-sharp high-downforce steering at 250+ km/h
+    const wheelbase = 3.55;
+    const speedFactor = clamp(this.speed / t.maxSpeedMs, 0, 1);
+    const baseSteerLimit = 0.44 * (1 - 0.84 * Math.pow(speedFactor, 0.72));
+    const gripSteerCap =
+      forwardSpeed > 14
+        ? Math.atan(((maxLateralAccel * 1.08) / (forwardSpeed * forwardSpeed)) * wheelbase)
+        : 0.44;
+    const dynamicSteerLimit = Math.max(0.032, Math.min(baseSteerLimit, gripSteerCap));
+    const desiredSteer = targetSteer * dynamicSteerLimit;
+    this.steerAngle += (desiredSteer - this.steerAngle) * Math.min(1, dt * 16);
 
     // Longitudinal acceleration + ERS boost
     const effectiveMaxSpeed = t.maxSpeedMs * (ersUsing ? 1.055 : 1.0);
@@ -156,7 +161,7 @@ class F1CarPhysics {
 
     if (this.brake > 0.01) {
       if (vForward > 1.5) {
-        longAccel -= this.brake * (36 + aeroLatGrip * 0.48);
+        longAccel -= this.brake * (38 + aeroLatGrip * 0.5);
       } else {
         longAccel -= this.brake * 12;
       }
@@ -173,8 +178,7 @@ class F1CarPhysics {
     vForward += longAccel * dt;
     vForward = clamp(vForward, -16, 114); // up to ~410 km/h ceiling
 
-    // Yaw rate & downforce-limited cornering
-    const wheelbase = 3.55;
+    // Yaw rate & downforce-limited cornering (clean F1 grip + natural understeer on excess speed, no sideways drifting)
     const effectiveSpeed = Math.abs(vForward) > 0.6 ? vForward : 0;
     const rawYawRate = (effectiveSpeed / wheelbase) * Math.tan(this.steerAngle);
 
@@ -182,28 +186,23 @@ class F1CarPhysics {
     this.gripUsage = maxLateralAccel > 0.1 ? neededLatAccel / maxLateralAccel : 0;
 
     let actualYawRate = rawYawRate;
-    if (this.gripUsage > 1.0) {
-      const gripCapRatio = 1 / Math.pow(this.gripUsage, 0.72);
-      actualYawRate = rawYawRate * gripCapRatio;
+    if (this.gripUsage > 1.0 && forwardSpeed > 8) {
+      // Cap turn rate cleanly to available tire + downforce grip (understeer)
+      const maxYaw = maxLateralAccel / forwardSpeed;
+      actualYawRate = Math.sign(rawYawRate) * Math.min(Math.abs(rawYawRate), maxYaw);
 
       const excess = this.gripUsage - 1.0;
-      const scrubDecel = Math.min(28, excess * 20);
-      vForward = Math.max(0, vForward - scrubDecel * dt);
-
-      const turnDir = Math.sign(rawYawRate);
-      vLateral -= turnDir * excess * 9.5 * dt;
-      this.isSliding = true;
+      vForward = Math.max(0, vForward - Math.min(18, excess * 14) * dt);
+      this.isSliding = excess > 0.08 && forwardSpeed > 32;
     } else {
-      this.isSliding = this.gripUsage > 0.88 && forwardSpeed > 35;
+      this.isSliding = false;
     }
 
     this.heading += actualYawRate * dt;
 
-    const latGripStrength = Math.min(
-      maxLateralAccel,
-      Math.abs(vLateral) / Math.max(dt, 0.001)
-    );
-    vLateral -= Math.sign(vLateral) * latGripStrength * dt * 0.88;
+    // High lateral tire stiffness keeps F1 car planted on rails (no rally drift)
+    const lateralDamping = isGrass ? 7.5 : 22.0;
+    vLateral *= Math.exp(-lateralDamping * dt);
 
     const newCos = Math.cos(this.heading);
     const newSin = Math.sin(this.heading);

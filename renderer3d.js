@@ -2,7 +2,7 @@
 const THREE = window.THREE;
 const { TRACKS, createF1Car3D } = window.F1;
 
-const CAMERA_MODES = ['tcam', 'cockpit', 'wing', 'chase'];
+const CAMERA_MODES = ['tcam', 'cockpit', 'wing', 'chase', 'inspect'];
 
 class RaceRenderer3D {
   constructor(containerEl, minimapCanvas) {
@@ -11,13 +11,19 @@ class RaceRenderer3D {
     this.minimapCtx = minimapCanvas.getContext('2d');
 
     this.cameraMode = 'tcam';
+    this.inspectYaw = 0.7;
+    this.inspectPitch = 0.28;
+    this.inspectAutoSpin = true;
+
     this.carVisual = null;
     this.currentTeamId = null;
     this.track = TRACKS.oval;
     this.trackGroup = null;
+    this.skyMesh = null;
 
     this.scene = new THREE.Scene();
-    this.scene.fog = new THREE.FogExp2(0xd8b89a, 0.00145);
+    this.scene.background = new THREE.Color(0xe0b28c);
+    this.scene.fog = new THREE.FogExp2(0xd8b89a, 0.0012);
 
     this.camera = new THREE.PerspectiveCamera(68, 16 / 9, 0.08, 1400);
 
@@ -118,8 +124,8 @@ class RaceRenderer3D {
       `,
     });
 
-    const skyMesh = new THREE.Mesh(skyGeo, skyMat);
-    this.scene.add(skyMesh);
+    this.skyMesh = new THREE.Mesh(skyGeo, skyMat);
+    this.scene.add(this.skyMesh);
 
     // Bake sky into PMREM environment map for real metallic/paint/asphalt reflections
     const pmrem = new THREE.PMREMGenerator(this.renderer);
@@ -935,6 +941,19 @@ class RaceRenderer3D {
       this.camera.position.copy(pos);
       this.camera.lookAt(look);
       this.camera.fov = 82 + speedRatio * 11;
+    } else if (this.cameraMode === 'inspect') {
+      // 360-degree Car Inspection Orbit Camera (auto-rotates gently + supports mouse/touch drag)
+      if (this.inspectAutoSpin) {
+        this.inspectYaw += dt * 0.45;
+      }
+      const dist = 5.4;
+      const cosP = Math.cos(this.inspectPitch);
+      const camX = car.x + Math.cos(this.inspectYaw) * cosP * dist;
+      const camY = Math.max(0.45, 0.55 + Math.sin(this.inspectPitch) * dist);
+      const camZ = car.y + Math.sin(this.inspectYaw) * cosP * dist;
+      this.camera.position.set(camX, camY, camZ);
+      this.camera.lookAt(car.x, 0.52, car.y);
+      this.camera.fov = 52;
     } else {
       const cos = Math.cos(car.heading);
       const sin = Math.sin(car.heading);
@@ -953,6 +972,11 @@ class RaceRenderer3D {
       this.camera.position.copy(this.chaseCamPos);
       this.camera.lookAt(this.chaseLookPos);
       this.camera.fov = 64 + speedRatio * 10;
+    }
+
+    // Keep sky dome centered on camera so it never clips beyond far plane!
+    if (this.skyMesh) {
+      this.skyMesh.position.copy(this.camera.position);
     }
 
     this.camera.updateProjectionMatrix();

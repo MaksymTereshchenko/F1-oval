@@ -164,8 +164,38 @@ function setCamera(mode) {
 camButtons.forEach((btn) => {
   btn.addEventListener('click', () => {
     setCamera(btn.dataset.cam);
+    if (btn.dataset.cam === 'inspect') {
+      renderer.inspectAutoSpin = true;
+    }
     btn.blur();
   });
+});
+
+// Mouse / Touch drag to rotate around the F1 car in INSPECT camera
+let isDraggingOrbit = false;
+let lastOrbitX = 0;
+let lastOrbitY = 0;
+
+viewport3d.addEventListener('pointerdown', (e) => {
+  if (!isRacing || renderer.cameraMode !== 'inspect') return;
+  isDraggingOrbit = true;
+  renderer.inspectAutoSpin = false;
+  lastOrbitX = e.clientX;
+  lastOrbitY = e.clientY;
+});
+
+window.addEventListener('pointermove', (e) => {
+  if (!isDraggingOrbit || renderer.cameraMode !== 'inspect') return;
+  const dx = e.clientX - lastOrbitX;
+  const dy = e.clientY - lastOrbitY;
+  lastOrbitX = e.clientX;
+  lastOrbitY = e.clientY;
+  renderer.inspectYaw += dx * 0.008;
+  renderer.inspectPitch = Math.max(0.08, Math.min(1.15, renderer.inspectPitch + dy * 0.006));
+});
+
+window.addEventListener('pointerup', () => {
+  isDraggingOrbit = false;
 });
 
 function handleErsToggle() {
@@ -443,6 +473,12 @@ function handleKey(e, isDown) {
       break;
     case 'Digit4':
       if (isDown && !e.repeat && isRacing) setCamera('chase');
+      break;
+    case 'Digit5':
+      if (isDown && !e.repeat && isRacing) {
+        setCamera('inspect');
+        renderer.inspectAutoSpin = true;
+      }
       break;
     case 'KeyR':
       if (isDown && !e.repeat && isRacing) resetSession();
