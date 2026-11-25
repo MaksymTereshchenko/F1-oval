@@ -21,13 +21,12 @@ class F1CarPhysics {
   }
 
   reset() {
-    const h = this.track.startHeading;
-    // Start 6m behind start/finish line
-    this.x = this.track.startX - Math.cos(h) * 6;
-    this.y = this.track.startZ - Math.sin(h) * 6;
+    // Spawn directly in the Pit Lane in front of the team Pit Boxes
+    this.x = this.track.pitSpawnX;
+    this.y = this.track.pitSpawnZ;
     this.vx = 0;
     this.vy = 0;
-    this.heading = h;
+    this.heading = this.track.pitSpawnHeading;
     this.steerAngle = 0;
 
     this.speed = 0;
@@ -217,15 +216,16 @@ class F1CarPhysics {
     this.x += this.vx * dt;
     this.y += this.vy * dt;
 
-    // Barrier collisions
+    // Barrier collisions (with expanded pit-lane clearance near Pit Straight)
     const afterInfo = queryPolylineTrack(tr, this.x, this.y);
+    const innerLimit = afterInfo.effectiveInnerLimit || tr.wallInnerOffset;
     if (afterInfo.offset > tr.wallOuterOffset) {
       const pen = afterInfo.offset - tr.wallOuterOffset;
       this.x -= afterInfo.nx * pen;
       this.y -= afterInfo.ny * pen;
       this.resolveWallImpact(afterInfo.nx, afterInfo.ny);
-    } else if (afterInfo.offset < -tr.wallInnerOffset) {
-      const pen = -tr.wallInnerOffset - afterInfo.offset;
+    } else if (afterInfo.offset < -innerLimit) {
+      const pen = -innerLimit - afterInfo.offset;
       this.x += afterInfo.nx * pen;
       this.y += afterInfo.ny * pen;
       this.resolveWallImpact(-afterInfo.nx, -afterInfo.ny);

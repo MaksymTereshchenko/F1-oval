@@ -539,9 +539,24 @@ class RaceRenderer3D {
       );
     }
 
-    // 3. Pirelli-style Yellow/Red Outer Wall + Armco White/Blue Inner Wall
+    // 3. Pirelli-style Yellow/Red Outer Wall + Armco White/Blue Inner Wall (skip pit lane zone)
     targetGroup.add(this.buildBarrierWall(pts, track.wallOuterOffset, 1.4, '#e6b800', '#c81d25', true));
-    targetGroup.add(this.buildBarrierWall(pts, -track.wallInnerOffset, 1.2, '#e2e8f0', '#2b6cb0', false));
+
+    const innerWallPts = pts.filter((p) => {
+      const prog = p.s / track.totalLen;
+      return prog >= 0.048 && prog <= 0.915;
+    });
+    if (innerWallPts.length >= 2) {
+      targetGroup.add(
+        this.buildBarrierWall(innerWallPts, -track.wallInnerOffset, 1.2, '#e2e8f0', '#2b6cb0', false)
+      );
+    }
+
+    // 3b. 3D Pit Lane, Pit Wall, 4 Team Pit Garages (Boxes), and Braking Distance Boards
+    this.buildPitComplex(track, targetGroup);
+    if (track.id === 'australia') {
+      this.buildBrakingBoards(track, targetGroup);
+    }
 
     // 4. Start/Finish Checkered Line + 3D Start Gantry
     const sfCanvas = document.createElement('canvas');
@@ -611,6 +626,174 @@ class RaceRenderer3D {
     }
 
     targetGroup.add(startGroup);
+  }
+
+  buildPitComplex(track, targetGroup) {
+    const pitGroup = new THREE.Group();
+    pitGroup.position.set(track.startX, 0, track.startZ);
+    pitGroup.rotation.y = -track.startHeading;
+
+    const pitCenterZ = track.pitOffset; // negative side (-normal)
+    const pitWidth = Math.abs(pitCenterZ) - track.halfWidth + 7.5;
+
+    // 1. Pit Lane Asphalt Apron
+    const pitAsphalt = new THREE.Mesh(
+      new THREE.PlaneGeometry(135, pitWidth),
+      new THREE.MeshStandardMaterial({ color: 0x2b2f3a, roughness: 0.72, metalness: 0.1 })
+    );
+    pitAsphalt.rotation.x = -Math.PI / 2;
+    pitAsphalt.position.set(-18, 0.023, -track.halfWidth - pitWidth / 2);
+    pitAsphalt.receiveShadow = true;
+    pitGroup.add(pitAsphalt);
+
+    // Pit Exit White Blend Line
+    const pitLine = new THREE.Mesh(
+      new THREE.PlaneGeometry(42, 0.35),
+      new THREE.MeshBasicMaterial({ color: 0xffe34d })
+    );
+    pitLine.rotation.x = -Math.PI / 2;
+    pitLine.position.set(36, 0.032, -track.halfWidth - 0.6);
+    pitGroup.add(pitLine);
+
+    // 2. Concrete Pit Wall separating main straight & pit lane (with open pit entry/exit!)
+    const pitWall = new THREE.Mesh(
+      new THREE.BoxGeometry(72, 1.05, 0.65),
+      new THREE.MeshStandardMaterial({ color: 0xd0d7e2, roughness: 0.65 })
+    );
+    pitWall.position.set(-18, 0.52, -track.halfWidth - 1.1);
+    pitWall.castShadow = true;
+    pitWall.receiveShadow = true;
+    pitGroup.add(pitWall);
+
+    // 3. 4 Team Pit Boxes / Garages (McLaren, Red Bull, Ferrari, Mercedes)
+    const pitTeams = [
+      { label: 'McLAREN', color: '#FF8000', text: '#14171d' },
+      { label: 'RED BULL', color: '#121c3d', text: '#FFD300' },
+      { label: 'FERRARI', color: '#D40000', text: '#FFFFFF' },
+      { label: 'MERCEDES', color: '#00D2BE', text: '#14171d' },
+    ];
+
+    const buildingMat = new THREE.MeshStandardMaterial({ color: 0x232936, roughness: 0.6, metalness: 0.25 });
+    const bayMat = new THREE.MeshStandardMaterial({ color: 0x0b0d12, roughness: 0.9 });
+    const roofMat = new THREE.MeshStandardMaterial({ color: 0xdce3ee, roughness: 0.4, metalness: 0.3 });
+
+    const startBoxX = -52;
+    const boxSpacing = 20;
+
+    pitTeams.forEach((pt, idx) => {
+      const bx = startBoxX + idx * boxSpacing;
+      const bz = pitCenterZ - 9.0;
+
+      // Garage Structure
+      const box = new THREE.Mesh(new THREE.BoxGeometry(18.5, 4.8, 8.5), buildingMat);
+      box.position.set(bx, 2.4, bz);
+      box.castShadow = true;
+      box.receiveShadow = true;
+      pitGroup.add(box);
+
+      // Overhang Canopy Roof
+      const canopy = new THREE.Mesh(new THREE.BoxGeometry(19.5, 0.4, 11.5), roofMat);
+      canopy.position.set(bx, 4.9, bz + 1.4);
+      canopy.castShadow = true;
+      pitGroup.add(canopy);
+
+      // Dark Open Garage Bay facing the pit lane (+Z)
+      const bay = new THREE.Mesh(new THREE.BoxGeometry(11.5, 3.3, 0.4), bayMat);
+      bay.position.set(bx, 1.65, bz + 4.2);
+      pitGroup.add(bay);
+
+      // Team Sign Banner above Garage Bay
+      const sCan = document.createElement('canvas');
+      sCan.width = 256;
+      sCan.height = 64;
+      const sCtx = sCan.getContext('2d');
+      sCtx.fillStyle = pt.color;
+      sCtx.fillRect(0, 0, 256, 64);
+      sCtx.fillStyle = pt.text;
+      sCtx.font = '900 32px sans-serif';
+      sCtx.textAlign = 'center';
+      sCtx.textBaseline = 'middle';
+      sCtx.fillText(pt.label, 128, 32);
+
+      const sTex = new THREE.CanvasTexture(sCan);
+      sTex.encoding = THREE.sRGBEncoding;
+
+      const sign = new THREE.Mesh(
+        new THREE.PlaneGeometry(14, 1.3),
+        new THREE.MeshBasicMaterial({ map: sTex })
+      );
+      sign.position.set(bx, 4.15, bz + 4.35);
+      pitGroup.add(sign);
+
+      // Painted Pit Box Marking on Asphalt in front of garage
+      const boxMark = new THREE.Mesh(
+        new THREE.PlaneGeometry(7.2, 3.2),
+        new THREE.MeshBasicMaterial({ color: pt.color, transparent: true, opacity: 0.72 })
+      );
+      boxMark.rotation.x = -Math.PI / 2;
+      boxMark.position.set(bx, 0.03, pitCenterZ - 1.2);
+      pitGroup.add(boxMark);
+    });
+
+    targetGroup.add(pitGroup);
+  }
+
+  buildBrakingBoards(track, targetGroup) {
+    const pts = track.pts;
+    const makeBoard = (distText) => {
+      const c = document.createElement('canvas');
+      c.width = 128;
+      c.height = 96;
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = '#f8fafc';
+      ctx.fillRect(0, 0, 128, 96);
+      ctx.strokeStyle = '#11151d';
+      ctx.lineWidth = 8;
+      ctx.strokeRect(4, 4, 120, 88);
+      ctx.fillStyle = '#11151d';
+      ctx.font = '900 50px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(distText, 64, 48);
+      const tex = new THREE.CanvasTexture(c);
+      tex.encoding = THREE.sRGBEncoding;
+      return new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide });
+    };
+
+    const boardMats = {
+      150: makeBoard('150'),
+      100: makeBoard('100'),
+      50: makeBoard('50'),
+    };
+    const postMat = new THREE.MeshStandardMaterial({ color: 0x1a202c, roughness: 0.5 });
+
+    let lastCornerStartS = -999;
+    for (let i = 1; i < pts.length - 1; i++) {
+      if (pts[i].isCorner && !pts[i - 1].isCorner && pts[i].s - lastCornerStartS > 160) {
+        lastCornerStartS = pts[i].s;
+        for (const dist of [100, 50]) {
+          const targetS = pts[i].s - dist * 0.45;
+          if (targetS < 20) continue;
+          const p = pts.find((pt) => pt.s >= targetS);
+          if (!p) continue;
+
+          const bx = p.x + p.nx * (track.halfWidth + 2.8);
+          const bz = p.z + p.nz * (track.halfWidth + 2.8);
+          const board = new THREE.Group();
+          const post = new THREE.Mesh(new THREE.BoxGeometry(0.15, 2.2, 0.15), postMat);
+          post.position.y = 1.1;
+          board.add(post);
+
+          const sign = new THREE.Mesh(new THREE.PlaneGeometry(1.9, 1.4), boardMats[dist]);
+          sign.position.y = 2.1;
+          board.add(sign);
+
+          board.position.set(bx, 0, bz);
+          board.rotation.y = -Math.atan2(p.uz, p.ux) + Math.PI / 2;
+          targetGroup.add(board);
+        }
+      }
+    }
   }
 
   setGantryLights(litCount, goGreen) {

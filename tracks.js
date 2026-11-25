@@ -1,7 +1,6 @@
 (() => {
 window.F1 = window.F1 || {};
 
-// Catmull-Rom interpolation for closed circuit spline
 function catmullRom(p0, p1, p2, p3, t) {
   const t2 = t * t;
   const t3 = t2 * t;
@@ -39,7 +38,6 @@ function buildPolylineTrack(def) {
     }
   }
 
-  // Compute cumulative arc length, outward/right normal, and curvature for kerbs
   const pts = [];
   const m = rawPts.length;
   let totalLen = 0;
@@ -59,11 +57,9 @@ function buildPolylineTrack(def) {
     const ux = tx / tLen;
     const uz = tz / tLen;
 
-    // Right-hand normal in XZ plane
     const nx = -uz;
     const nz = ux;
 
-    // Angle change to detect corners for red-and-white kerbs
     const v1x = curr.x - prev.x;
     const v1z = curr.z - prev.z;
     const v2x = next.x - curr.x;
@@ -85,13 +81,16 @@ function buildPolylineTrack(def) {
     });
   }
 
-  // Close loop total length
   const last = rawPts[m - 1];
   const first = rawPts[0];
   totalLen += Math.hypot(first.x - last.x, first.z - last.z);
-
-  // Add duplicated start point at the end for seamless ribbon rendering
   pts.push({ ...pts[0], s: totalLen });
+
+  const startHeading = Math.atan2(pts[0].uz, pts[0].ux);
+  // Pit lane runs on the inside/left side (-normal) of the start/finish straight
+  const pitOffset = -(def.halfWidth + 11.5);
+  const pitSpawnX = pts[0].x - Math.cos(startHeading) * 32 + pts[0].nx * pitOffset;
+  const pitSpawnZ = pts[0].z - Math.sin(startHeading) * 32 + pts[0].nz * pitOffset;
 
   return {
     ...def,
@@ -99,11 +98,15 @@ function buildPolylineTrack(def) {
     totalLen,
     startX: pts[0].x,
     startZ: pts[0].z,
-    startHeading: Math.atan2(pts[0].uz, pts[0].ux),
+    startHeading,
+    pitOffset,
+    pitSide: -1, // -normal side
+    pitSpawnX,
+    pitSpawnZ,
+    pitSpawnHeading: startHeading,
   };
 }
 
-// Oval track sampler (smooth exact stadium shape)
 function buildOvalTrack() {
   const L = 125;
   const R = 135;
@@ -162,6 +165,7 @@ function buildOvalTrack() {
     });
   }
 
+  const pitOffset = -(14 + 11.5);
   return {
     id: 'oval',
     name: 'Flat Oval',
@@ -170,21 +174,25 @@ function buildOvalTrack() {
     kerbWidth: 2.1,
     wallOuterOffset: 22,
     wallInnerOffset: 22,
-    pond: { x: -48, z: 0, rx: 36, rz: 20 },
+    pond: { x: -48, z: -15, rx: 34, rz: 18 },
     pts,
     totalLen,
-    // Start at bottom straight x = -6, z = +135 facing +X (0 rad)
-    startX: -6,
+    startX: 0,
     startZ: R,
     startHeading: 0,
+    pitOffset,
+    pitSide: -1,
+    pitSpawnX: -32,
+    pitSpawnZ: R + pitOffset,
+    pitSpawnHeading: 0,
     minimapScale: 0.23,
     minimapOffsetX: 0,
     minimapOffsetZ: 0,
   };
 }
 
-// Albert Park (Melbourne, Australia) — 14 turns (2022–2025 F1 layout)
-// Start at Pit Straight heading +X, clockwise loop through T1-T14!
+// Accurate Albert Park (Melbourne, Australia) — 14-turn F1 layout
+// Pit straight along top heading +X, sharp T1-T2 chicane, T3 hairpin, T6-T7, Lakeside T8, fast T9-T10, T11-T14!
 const AUSTRALIA_DEF = {
   id: 'australia',
   name: 'Australia',
@@ -193,42 +201,53 @@ const AUSTRALIA_DEF = {
   kerbWidth: 1.9,
   wallOuterOffset: 17.5,
   wallInnerOffset: 17.5,
-  scale: 1.35,
+  scale: 1.38,
   stepsPerSeg: 18,
-  kerbCurvatureThreshold: 0.0045,
-  pond: { x: 10, z: 45, rx: 105, rz: 58 },
-  minimapScale: 0.115,
+  kerbCurvatureThreshold: 0.0042,
+  pond: { x: 25, z: 32, rx: 98, rz: 54 },
+  minimapScale: 0.112,
   minimapOffsetX: 0,
-  minimapOffsetZ: -15,
-  // Control points tracing Pit Straight (+X) -> T1-T2 -> T3-T4-T5 -> T6-T7 -> T8 -> T9-T10 -> T11-T12 -> T13 -> T14
+  minimapOffsetZ: -12,
   controlPoints: [
-    { x: -10, z: -210 },   // Start/Finish on Pit Straight
-    { x: 115, z: -210 },   // End of Pit Straight braking into T1
-    { x: 195, z: -206 },   // T1 (Jones) apex (Right)
-    { x: 230, z: -162 },   // T2 (Brabham) transition (Left)
-    { x: 295, z: -138 },   // T2 exit straight
-    { x: 390, z: -130 },   // Braking zone for T3
-    { x: 432, z: -105 },   // T3 (Sports Centre) apex (Right)
-    { x: 395, z: -48 },    // T4 apex (Left)
-    { x: 440, z: 12 },     // T5 fast apex (Right)
-    { x: 412, z: 85 },     // Short chute into T6
-    { x: 370, z: 145 },    // T6 (Whiteford) fast Right
-    { x: 315, z: 162 },    // T7 fast Left onto Lakeside Drive
-    { x: 255, z: 215 },    // Lakeside Drive entry
-    { x: 140, z: 265 },    // T8 sweeping Left lakeside kink
-    { x: 10, z: 278 },     // Mid Lakeside Drive
-    { x: -125, z: 255 },   // Approach T9-T10 high-speed chicane
+    // Main Pit Straight (+X)
+    { x: -10, z: -215 },   // Start / Finish line
+    { x: 105, z: -215 },   // End of Pit Straight
+    { x: 178, z: -214 },   // Braking zone for T1
+    // T1 (Jones - crisp Right) & T2 (Brabham - crisp Left)
+    { x: 205, z: -206 },   // T1 apex
+    { x: 222, z: -168 },   // T1 -> T2
+    { x: 252, z: -146 },   // T2 apex
+    { x: 325, z: -146 },   // Straight toward T3
+    // T3 (Sports Centre - tight Right hairpin) -> T4 (Left) -> T5 (Right)
+    { x: 425, z: -142 },   // Braking into T3
+    { x: 452, z: -128 },   // T3 apex
+    { x: 420, z: -85 },    // T3 exit
+    { x: 392, z: -48 },    // T4 apex (Left)
+    { x: 438, z: 12 },     // T5 apex (fast Right)
+    // T6-T7 (Whiteford fast Right-Left complex)
+    { x: 425, z: 92 },     // Approach T6
+    { x: 372, z: 152 },    // T6 apex (Right)
+    { x: 312, z: 162 },    // T7 apex (Left)
+    // Lakeside Drive + T8 sweeping kink
+    { x: 245, z: 218 },    // Lakeside entry
+    { x: 135, z: 266 },    // T8 Left kink
+    { x: 0, z: 274 },      // Mid Lakeside Drive
+    // T9-T10 (High-speed sweeping Left-Right chicane)
+    { x: -135, z: 252 },   // Entry to T9
     { x: -195, z: 268 },   // T9 fast Left
-    { x: -265, z: 222 },   // T10 fast Right
-    { x: -345, z: 165 },   // Back straight toward T11
-    { x: -415, z: 105 },   // Braking into T11
-    { x: -435, z: 32 },    // T11 (Waite) apex (Right)
-    { x: -405, z: -48 },   // T12 (Stewart) sweeping Right
-    { x: -355, z: -115 },  // Approach T13
-    { x: -285, z: -130 },  // T13 (Ascari) heavy-braking Right
-    { x: -292, z: -192 },  // T14 (Prost) Right onto Pit Straight
-    { x: -230, z: -212 },  // Pit Straight entry
-    { x: -120, z: -210 },  // Pit Straight mid
+    { x: -242, z: 240 },   // T9->T10 flick
+    { x: -282, z: 206 },   // T10 fast Right
+    { x: -358, z: 168 },   // Straight toward T11
+    // T11 (Waite) -> T12 (Stewart) -> T13 (Ascari) -> T14 (Prost)
+    { x: -420, z: 112 },   // Braking for T11
+    { x: -442, z: 42 },    // T11 apex (Right)
+    { x: -415, z: -38 },   // T12 sweeping Right
+    { x: -365, z: -108 },  // Approach T13
+    { x: -292, z: -115 },  // T13 (Ascari) tight Right apex
+    { x: -308, z: -178 },  // T13 exit
+    { x: -292, z: -214 },  // T14 (Prost) onto Pit Straight
+    { x: -205, z: -215 },  // Pit Straight entry (pit exit joins here)
+    { x: -105, z: -215 },  // Pit Straight mid
   ],
 };
 
@@ -273,20 +292,23 @@ function queryPolylineTrack(track, x, z) {
   const s = a.s + bestT * segLen;
   const progress = (s % track.totalLen) / track.totalLen;
 
-  // Interpolate outward/right normal
   const rnx = a.nx + (b.nx - a.nx) * bestT;
   const rnz = a.nz + (b.nz - a.nz) * bestT;
   const rnLen = Math.hypot(rnx, rnz) || 1;
   const nx = rnx / rnLen;
   const nz = rnz / rnLen;
 
-  // Signed radial offset (+ = right/outer side of track normal, - = inner/left side)
   const vx = x - bestX;
   const vz = z - bestZ;
   const dist = Math.hypot(vx, vz);
   const sign = vx * nx + vz * nz >= 0 ? 1 : -1;
   const offset = dist * sign;
   const absOffset = Math.abs(offset);
+
+  // Allow extra inner clearance near Start/Finish straight so car can drive freely in the Pit Lane & Pit Boxes
+  const inPitZone = progress < 0.045 || progress > 0.92;
+  const inPitAsphalt =
+    inPitZone && offset <= -track.halfWidth && offset >= track.pitOffset - 6.5;
 
   const onCorner = a.isCorner || b.isCorner;
   const onKerb =
@@ -295,11 +317,17 @@ function queryPolylineTrack(track, x, z) {
     onCorner;
 
   let surface = 'asphalt';
-  if (absOffset > track.halfWidth + 0.3) {
+  if (inPitAsphalt) {
+    surface = 'asphalt';
+  } else if (absOffset > track.halfWidth + 0.3) {
     surface = 'grass';
   } else if (onKerb) {
     surface = 'kerb';
   }
+
+  const effectiveInnerLimit = inPitZone
+    ? Math.max(track.wallInnerOffset, Math.abs(track.pitOffset) + 7.5)
+    : track.wallInnerOffset;
 
   return {
     offset,
@@ -309,6 +337,7 @@ function queryPolylineTrack(track, x, z) {
     onCorner,
     surface,
     progress,
+    effectiveInnerLimit,
   };
 }
 
