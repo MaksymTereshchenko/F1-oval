@@ -134,21 +134,22 @@ class RaceRenderer3D {
     const hemi = new THREE.HemisphereLight(0x9bc7ff, 0x3b4d2b, 0.72);
     this.scene.add(hemi);
 
-    // Warm Golden Hour directional sun casting crisp long shadows
-    const sun = new THREE.DirectionalLight(0xffdfb0, 1.65);
-    sun.position.set(220, 115, -280);
-    sun.castShadow = true;
-    sun.shadow.mapSize.width = 2048;
-    sun.shadow.mapSize.height = 2048;
-    sun.shadow.camera.near = 20;
-    sun.shadow.camera.far = 1100;
-    const d = 660;
-    sun.shadow.camera.left = -d;
-    sun.shadow.camera.right = d;
-    sun.shadow.camera.top = d;
-    sun.shadow.camera.bottom = -d;
-    sun.shadow.bias = -0.0005;
-    this.scene.add(sun);
+    // Warm Golden Hour directional sun casting crisp tight shadows around the car
+    this.sun = new THREE.DirectionalLight(0xffdfb0, 1.65);
+    this.sun.position.set(45, 55, -60);
+    this.sun.castShadow = true;
+    this.sun.shadow.mapSize.width = 2048;
+    this.sun.shadow.mapSize.height = 2048;
+    this.sun.shadow.camera.near = 5;
+    this.sun.shadow.camera.far = 220;
+    const d = 42;
+    this.sun.shadow.camera.left = -d;
+    this.sun.shadow.camera.right = d;
+    this.sun.shadow.camera.top = d;
+    this.sun.shadow.camera.bottom = -d;
+    this.sun.shadow.bias = -0.0004;
+    this.scene.add(this.sun);
+    this.scene.add(this.sun.target);
 
     // Subtle cool sky fill light from opposite direction
     const fill = new THREE.DirectionalLight(0x7fb4ff, 0.4);
@@ -785,6 +786,14 @@ class RaceRenderer3D {
   render(car, dt) {
     this.ensureCar(car.team);
     this.carVisual.updateVisuals(car, dt, this.cameraMode);
+
+    // Keep shadow frustum locked tightly around the car for crisp grounded tire/wing shadows
+    if (this.sun) {
+      this.sun.position.set(car.x + 45, 55, car.y - 60);
+      this.sun.target.position.set(car.x, 0, car.y);
+      this.sun.target.updateMatrixWorld();
+    }
+
     this.updateParticles(car, dt);
     this.updateCamera(car, dt);
     this.renderer.render(this.scene, this.camera);
