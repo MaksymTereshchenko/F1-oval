@@ -23,9 +23,9 @@ class RaceRenderer3D {
 
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0xe0b28c);
-    this.scene.fog = new THREE.FogExp2(0xd8b89a, 0.0012);
+    this.scene.fog = new THREE.FogExp2(0xd8b89a, 0.00078);
 
-    this.camera = new THREE.PerspectiveCamera(68, 16 / 9, 0.08, 1400);
+    this.camera = new THREE.PerspectiveCamera(68, 16 / 9, 0.08, 2200);
 
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
@@ -87,7 +87,7 @@ class RaceRenderer3D {
   }
 
   setupGoldenHourSkyAndEnv() {
-    const skyGeo = new THREE.SphereGeometry(950, 32, 20);
+    const skyGeo = new THREE.SphereGeometry(1650, 32, 20);
     const skyMat = new THREE.ShaderMaterial({
       side: THREE.BackSide,
       depthWrite: false,
@@ -180,11 +180,11 @@ class RaceRenderer3D {
     const grassTex = new THREE.CanvasTexture(gCanvas);
     grassTex.wrapS = THREE.RepeatWrapping;
     grassTex.wrapT = THREE.RepeatWrapping;
-    grassTex.repeat.set(85, 85);
+    grassTex.repeat.set(170, 170);
     grassTex.encoding = THREE.sRGBEncoding;
 
     const ground = new THREE.Mesh(
-      new THREE.PlaneGeometry(2400, 2400),
+      new THREE.PlaneGeometry(5200, 5200),
       new THREE.MeshStandardMaterial({ map: grassTex, roughness: 0.94, metalness: 0.0 })
     );
     ground.rotation.x = -Math.PI / 2;
@@ -288,9 +288,10 @@ class RaceRenderer3D {
       return (seed - 1) / 2147483646;
     };
 
-    const range = track.id === 'australia' ? 760 : 400;
+    const range = track.id === 'australia' ? 1350 : 400;
+    const maxTrees = track.id === 'australia' ? 120 : 56;
     let placed = 0;
-    for (let attempt = 0; attempt < 260 && placed < 56; attempt++) {
+    for (let attempt = 0; attempt < 550 && placed < maxTrees; attempt++) {
       const tx = (rand() * 2 - 1) * range;
       const tz = (rand() * 2 - 1) * range;
 

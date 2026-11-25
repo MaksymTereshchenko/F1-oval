@@ -191,63 +191,62 @@ function buildOvalTrack() {
   };
 }
 
-// Accurate Albert Park (Melbourne, Australia) — 14-turn F1 layout
-// Pit straight along top heading +X, sharp T1-T2 chicane, T3 hairpin, T6-T7, Lakeside T8, fast T9-T10, T11-T14!
+// Accurate Albert Park (Melbourne, Australia) — ~6.1 km, 14-turn F1 layout (~1:30 lap time)
 const AUSTRALIA_DEF = {
   id: 'australia',
   name: 'Australia',
-  subtitle: 'Albert Park, Melbourne • 14 Turns',
-  halfWidth: 11.5,
-  kerbWidth: 1.9,
-  wallOuterOffset: 17.5,
-  wallInnerOffset: 17.5,
-  scale: 1.38,
-  stepsPerSeg: 18,
-  kerbCurvatureThreshold: 0.0042,
-  pond: { x: 25, z: 32, rx: 98, rz: 54 },
-  minimapScale: 0.112,
-  minimapOffsetX: 0,
-  minimapOffsetZ: -12,
+  subtitle: 'Albert Park, Melbourne • ~1:30 Lap',
+  halfWidth: 12.5,
+  kerbWidth: 2.0,
+  wallOuterOffset: 19.5,
+  wallInnerOffset: 19.5,
+  scale: 2.48,
+  stepsPerSeg: 20,
+  kerbCurvatureThreshold: 0.0024,
+  pond: { x: 40, z: 75, rx: 220, rz: 120 },
+  minimapScale: 0.062,
+  minimapOffsetX: 2,
+  minimapOffsetZ: -6,
   controlPoints: [
     // Main Pit Straight (+X)
-    { x: -10, z: -215 },   // Start / Finish line
-    { x: 105, z: -215 },   // End of Pit Straight
-    { x: 178, z: -214 },   // Braking zone for T1
-    // T1 (Jones - crisp Right) & T2 (Brabham - crisp Left)
-    { x: 205, z: -206 },   // T1 apex
-    { x: 222, z: -168 },   // T1 -> T2
-    { x: 252, z: -146 },   // T2 apex
-    { x: 325, z: -146 },   // Straight toward T3
-    // T3 (Sports Centre - tight Right hairpin) -> T4 (Left) -> T5 (Right)
-    { x: 425, z: -142 },   // Braking into T3
-    { x: 452, z: -128 },   // T3 apex
-    { x: 420, z: -85 },    // T3 exit
-    { x: 392, z: -48 },    // T4 apex (Left)
-    { x: 438, z: 12 },     // T5 apex (fast Right)
-    // T6-T7 (Whiteford fast Right-Left complex)
-    { x: 425, z: 92 },     // Approach T6
-    { x: 372, z: 152 },    // T6 apex (Right)
-    { x: 312, z: 162 },    // T7 apex (Left)
-    // Lakeside Drive + T8 sweeping kink
-    { x: 245, z: 218 },    // Lakeside entry
-    { x: 135, z: 266 },    // T8 Left kink
-    { x: 0, z: 274 },      // Mid Lakeside Drive
+    { x: -20, z: -215 },
+    { x: 95, z: -215 },
+    { x: 185, z: -214 },   // Braking zone for T1 (Jones)
+    // T1 (Jones - sharp Right) -> T2 (Brabham - sharp Left)
+    { x: 212, z: -202 },   // T1 apex
+    { x: 224, z: -158 },   // T1 -> T2 transition
+    { x: 256, z: -138 },   // T2 apex
+    { x: 335, z: -140 },   // Straight down toward T3
+    // T3 (Sports Centre - hard Right hairpin) -> T4 (Left) -> T5 (Right)
+    { x: 432, z: -136 },   // Braking zone into T3
+    { x: 458, z: -120 },   // T3 tight apex
+    { x: 424, z: -76 },    // T3 exit
+    { x: 388, z: -42 },    // T4 (Left)
+    { x: 444, z: 16 },     // T5 (fast Right)
+    // T6-T7 (Whiteford fast Right-Left onto Lakeside Drive)
+    { x: 428, z: 96 },
+    { x: 374, z: 156 },    // T6 (Right)
+    { x: 312, z: 162 },    // T7 (Left)
+    // Lakeside Drive hugging Albert Park Lake + T8 sweeping Left kink
+    { x: 235, z: 222 },
+    { x: 125, z: 270 },    // T8 sweeping bend
+    { x: -10, z: 278 },
     // T9-T10 (High-speed sweeping Left-Right chicane)
-    { x: -135, z: 252 },   // Entry to T9
-    { x: -195, z: 268 },   // T9 fast Left
-    { x: -242, z: 240 },   // T9->T10 flick
-    { x: -282, z: 206 },   // T10 fast Right
-    { x: -358, z: 168 },   // Straight toward T11
+    { x: -135, z: 254 },
+    { x: -195, z: 272 },   // T9 fast Left
+    { x: -245, z: 242 },
+    { x: -288, z: 204 },   // T10 fast Right
+    { x: -368, z: 164 },   // Approach T11
     // T11 (Waite) -> T12 (Stewart) -> T13 (Ascari) -> T14 (Prost)
-    { x: -420, z: 112 },   // Braking for T11
-    { x: -442, z: 42 },    // T11 apex (Right)
-    { x: -415, z: -38 },   // T12 sweeping Right
-    { x: -365, z: -108 },  // Approach T13
-    { x: -292, z: -115 },  // T13 (Ascari) tight Right apex
-    { x: -308, z: -178 },  // T13 exit
+    { x: -425, z: 108 },
+    { x: -446, z: 36 },    // T11 (Right)
+    { x: -418, z: -42 },   // T12 (sweeping Right)
+    { x: -368, z: -108 },  // Braking for T13
+    { x: -286, z: -112 },  // T13 (Ascari) tight Right
+    { x: -308, z: -176 },
     { x: -292, z: -214 },  // T14 (Prost) onto Pit Straight
-    { x: -205, z: -215 },  // Pit Straight entry (pit exit joins here)
-    { x: -105, z: -215 },  // Pit Straight mid
+    { x: -205, z: -215 },
+    { x: -110, z: -215 },
   ],
 };
 
